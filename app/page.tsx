@@ -18,7 +18,7 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
-import CallAnalysisDemo from "@/components/CallAnalysisDemo";
+import WorkingDemo from "@/components/WorkingDemo";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -30,7 +30,7 @@ export default function Home() {
       <Hero />
       <Features />
       <HowItWorks />
-      <CallAnalysisDemo />
+      <WorkingDemo />
       <Footer />
     </main>
   );
