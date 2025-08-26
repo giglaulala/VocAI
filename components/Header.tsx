@@ -19,7 +19,8 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <motion.div
+          <motion.a
+            href="/"
             className="flex items-center space-x-2"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -29,7 +30,7 @@ export default function Header() {
               <Phone className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold gradient-text">VocAI</span>
-          </motion.div>
+          </motion.a>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
@@ -48,20 +49,22 @@ export default function Header() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <motion.button
+            <motion.a
+              href="/sign-in"
               className="px-4 py-2 text-primary-600 hover:text-primary-700 font-medium transition-colors duration-200"
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
             >
               Sign In
-            </motion.button>
-            <motion.button
+            </motion.a>
+            <motion.a
+              href="/demo"
               className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-200 shadow-glow hover:shadow-lg"
               whileHover={{ scale: 1.05, y: -2 }}
               transition={{ duration: 0.2 }}
             >
               Get Started
-            </motion.button>
+            </motion.a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -98,12 +101,18 @@ export default function Header() {
                 </a>
               ))}
               <div className="pt-4 space-y-2">
-                <button className="w-full px-3 py-2 text-primary-600 hover:text-primary-700 font-medium transition-colors duration-200">
+                <a
+                  href="/sign-in"
+                  className="block w-full text-center px-3 py-2 text-primary-600 hover:text-primary-700 font-medium transition-colors duration-200"
+                >
                   Sign In
-                </button>
-                <button className="w-full px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-200">
+                </a>
+                <a
+                  href="/demo"
+                  className="block w-full text-center px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-200"
+                >
                   Get Started
-                </button>
+                </a>
               </div>
             </div>
           </motion.div>

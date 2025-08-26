@@ -36,6 +36,38 @@ export default function ChatDemo(): JSX.Element {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
     null
   );
+  const [selectedThreadId, setSelectedThreadId] = useState<string>("t1");
+
+  const fakeThreads = [
+    {
+      id: "t1",
+      name: "Acme Corp",
+      lastMessage: "Could you send the pricing tiers?",
+      time: "2m",
+      color: "primary",
+    },
+    {
+      id: "t2",
+      name: "Sophia Lee",
+      lastMessage: "Let's schedule a follow-up next week.",
+      time: "15m",
+      color: "accent",
+    },
+    {
+      id: "t3",
+      name: "Northwind Sales",
+      lastMessage: "Thanks for the demo!",
+      time: "1h",
+      color: "primary",
+    },
+    {
+      id: "t4",
+      name: "Delta Support",
+      lastMessage: "Ticket #4821 has been resolved.",
+      time: "3h",
+      color: "accent",
+    },
+  ];
 
   const messages = useMemo(() => {
     const turns = analysisResult?.conversation || [];
@@ -136,8 +168,61 @@ export default function ChatDemo(): JSX.Element {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <aside className="lg:col-span-3">
+        <div className="bg-white rounded-2xl border border-neutral-200 shadow-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-neutral-200">
+            <h3 className="text-sm font-semibold text-neutral-900">Chats</h3>
+          </div>
+          <div className="max-h-[620px] overflow-y-auto">
+            {fakeThreads.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setSelectedThreadId(t.id)}
+                className={`w-full px-4 py-3 flex items-center gap-3 border-b border-neutral-100 hover:bg-neutral-50 text-left ${
+                  selectedThreadId === t.id ? "bg-neutral-50" : "bg-white"
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    t.color === "primary" ? "bg-primary-100" : "bg-accent-100"
+                  }`}
+                >
+                  <span
+                    className={`text-sm font-semibold ${
+                      t.color === "primary"
+                        ? "text-primary-700"
+                        : "text-accent-700"
+                    }`}
+                  >
+                    {t.name
+                      .split(" ")
+                      .map((p) => p[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-neutral-900 truncate">
+                      {t.name}
+                    </p>
+                    <span className="text-[11px] text-neutral-500 ml-2 flex-shrink-0">
+                      {t.time}
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-600 truncate">
+                    {t.lastMessage}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </aside>
+
+      <div className="lg:col-span-6">
         <div className="bg-white rounded-2xl border border-neutral-200 shadow-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -254,7 +339,7 @@ export default function ChatDemo(): JSX.Element {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="lg:col-span-3 space-y-6">
         <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
           <h3 className="text-lg font-semibold text-neutral-900 mb-4">
             AI Analysis
