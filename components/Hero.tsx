@@ -37,7 +37,8 @@ export default function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
           >
-            <motion.button
+            <motion.a
+              href="#demo"
               className="px-8 py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold text-lg transition-all duration-200 shadow-glow hover:shadow-xl flex items-center space-x-2"
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -45,8 +46,9 @@ export default function Hero() {
             >
               <Play className="w-5 h-5" />
               <span>Try Demo</span>
-            </motion.button>
-            <motion.button
+            </motion.a>
+            <motion.a
+              href="/demo"
               className="px-8 py-4 border-2 border-primary-600 text-primary-600 hover:bg-primary-50 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center space-x-2"
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -54,7 +56,7 @@ export default function Hero() {
             >
               <Upload className="w-5 h-5" />
               <span>Upload Call</span>
-            </motion.button>
+            </motion.a>
           </motion.div>
 
           {/* Stats */}

@@ -121,7 +121,10 @@ export default function WorkingDemo(): JSX.Element {
   };
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-50 to-white">
+    <section
+      id="demo"
+      className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-50 to-white"
+    >
       <div className="max-w-7xl mx-auto">
         <motion.div
           className="text-center mb-10"
