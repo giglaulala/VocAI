@@ -9,6 +9,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   console.log("🔍 STT API called - starting debug");
   try {
+    // Allow model override via query param
+    const url = new URL(req.url);
+    const modelQueryParam = (url.searchParams.get("model") || "").toLowerCase();
     const contentType = req.headers.get("content-type") || "";
     console.log("📋 Content-Type:", contentType);
 
@@ -22,6 +25,8 @@ export async function POST(req: Request) {
 
     const form = await req.formData();
     const file = form.get("file");
+    // Allow model override via multipart field as well
+    const modelFormField = (form.get("model") as string | null) || null;
     console.log(
       "📁 File received:",
       file ? `${(file as Blob).type} (${(file as Blob).size} bytes)` : "No file"
@@ -157,21 +162,117 @@ export async function POST(req: Request) {
 
     // Let the API infer encoding if not set. Use a general-purpose model and punctuation.
     console.log("🎯 Creating recognition request...");
+    // Decide model to use
+    const requestedModel = (modelFormField || modelQueryParam || "video")
+      .toString()
+      .toLowerCase();
+    const chosenModel = ["video", "phone_call", "default"].includes(
+      requestedModel
+    )
+      ? (requestedModel as "video" | "phone_call" | "default")
+      : "video";
+    const useEnhanced = chosenModel === "video" || chosenModel === "phone_call";
+    // Optional advanced parameters from query/form
+    const parseBool = (val: string | null): boolean | undefined => {
+      if (val == null) return undefined;
+      const v = val.toLowerCase();
+      if (v === "true" || v === "1" || v === "yes") return true;
+      if (v === "false" || v === "0" || v === "no") return false;
+      return undefined;
+    };
+    const getAll = (name: string): string[] => {
+      const values: string[] = [];
+      // query params
+      url.searchParams.getAll(name).forEach((v) => values.push(v));
+      // form field (comma-separated or repeated are both supported below)
+      const formVal = form.getAll(name);
+      formVal.forEach((v) => {
+        if (typeof v === "string")
+          values.push(
+            ...v
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          );
+      });
+      return values;
+    };
+
+    const diarizationEnabled =
+      parseBool(url.searchParams.get("diarization")) ??
+      parseBool((form.get("diarization") as string) || null);
+    const minSpeakers = parseInt(
+      url.searchParams.get("minSpeakers") ||
+        (form.get("minSpeakers") as string) ||
+        "",
+      10
+    );
+    const maxSpeakers = parseInt(
+      url.searchParams.get("maxSpeakers") ||
+        (form.get("maxSpeakers") as string) ||
+        "",
+      10
+    );
+    const phrases = getAll("phrases");
+    const sampleRateHertz = parseInt(
+      url.searchParams.get("sampleRateHertz") ||
+        (form.get("sampleRateHertz") as string) ||
+        "",
+      10
+    );
+    const audioChannelCount = parseInt(
+      url.searchParams.get("audioChannelCount") ||
+        (form.get("audioChannelCount") as string) ||
+        "",
+      10
+    );
+    const enableSeparateRecognitionPerChannel =
+      parseBool(url.searchParams.get("enableSeparateRecognitionPerChannel")) ??
+      parseBool(
+        (form.get("enableSeparateRecognitionPerChannel") as string) || null
+      );
+
     const request = {
       audio: { content: audioBytes },
       config: {
-        // only set encoding when we are confident (e.g., MP3)
         ...(encoding !== undefined ? { encoding } : {}),
         enableAutomaticPunctuation: true,
         languageCode: "en-US",
-        model: "default",
+        model: chosenModel,
+        ...(useEnhanced ? { useEnhanced: true } : {}),
         enableWordTimeOffsets: false,
+        ...(Number.isFinite(sampleRateHertz) && sampleRateHertz > 0
+          ? { sampleRateHertz }
+          : {}),
+        ...(Number.isFinite(audioChannelCount) && audioChannelCount > 0
+          ? { audioChannelCount }
+          : {}),
+        ...(enableSeparateRecognitionPerChannel !== undefined
+          ? { enableSeparateRecognitionPerChannel }
+          : {}),
+        ...(diarizationEnabled
+          ? {
+              enableSpeakerDiarization: true,
+              ...(Number.isFinite(minSpeakers) && minSpeakers > 0
+                ? { minSpeakerCount: minSpeakers }
+                : {}),
+              ...(Number.isFinite(maxSpeakers) && maxSpeakers > 0
+                ? { maxSpeakerCount: maxSpeakers }
+                : {}),
+            }
+          : {}),
+        ...(phrases.length > 0 ? { speechContexts: [{ phrases }] } : {}),
       },
     } as const;
-    console.log("✅ Request created:", JSON.stringify(request, null, 2));
+    // Redact audio content from logs
+    const requestForLog = {
+      ...request,
+      audio: { content: "<redacted base64>" },
+    };
+    console.log("✅ Request created:", JSON.stringify(requestForLog, null, 2));
 
     // Add timeout to prevent hanging on bad creds
-    console.log("⏱️ Starting speech recognition with 15s timeout...");
+    console.log("⏱️ Starting speech recognition with 60s timeout...");
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Speech recognition timeout")), 60000)
     );
