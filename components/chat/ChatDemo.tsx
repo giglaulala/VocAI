@@ -37,6 +37,7 @@ export default function ChatDemo(): JSX.Element {
     null
   );
   const [selectedThreadId, setSelectedThreadId] = useState<string>("t1");
+  const [language, setLanguage] = useState<string>("");
 
   const fakeThreads = [
     {
@@ -106,12 +107,18 @@ export default function ChatDemo(): JSX.Element {
     try {
       const form = new FormData();
       form.append("file", file);
+      if (language) form.append("language", language);
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 90000);
       let res: Response;
       try {
-        res = await fetch("/api/process-audio", {
+        // Route selection: use Whisper for Turkish/Georgian or if user chose a language explicitly
+        const shouldUseWhisper = ["tr", "ka"].includes(language);
+        const endpoint = shouldUseWhisper
+          ? "/api/whisper"
+          : "/api/process-audio";
+        res = await fetch(endpoint, {
           method: "POST",
           body: form,
           signal: controller.signal,
@@ -136,8 +143,19 @@ export default function ChatDemo(): JSX.Element {
         return;
       }
 
+      const contentType = res.headers.get("content-type") || "";
       const data = await res.json();
-      const analysis = (data.analysis || {}) as AnalysisResult;
+      // Normalize to our AnalysisResult shape
+      let analysis: AnalysisResult = {};
+      if (
+        contentType.includes("application/json") &&
+        "text" in data &&
+        !("analysis" in data)
+      ) {
+        analysis = { transcript: data.text };
+      } else {
+        analysis = (data.analysis || {}) as AnalysisResult;
+      }
       if (!analysis.transcript || analysis.transcript.trim().length === 0) {
         const fb = await fetch("/api/demo-fallback", {
           method: "POST",
@@ -298,6 +316,19 @@ export default function ChatDemo(): JSX.Element {
           </div>
 
           <div className="px-4 py-3 border-t border-neutral-200 bg-white">
+            <div className="mb-3">
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">Auto (Google/Whisper)</option>
+                <option value="en">English (Whisper)</option>
+                <option value="ru">Russian (Whisper)</option>
+                <option value="tr">Turkish (Whisper)</option>
+                <option value="ka">Georgian (Whisper)</option>
+              </select>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <label className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-neutral-200 hover:bg-neutral-50 cursor-pointer">
                 <Upload className="w-4 h-4 text-primary-600" />
