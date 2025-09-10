@@ -33,6 +33,7 @@ export default function WorkingDemo(): JSX.Element {
     null
   );
   const [useFallback, setUseFallback] = useState(true);
+  const [language, setLanguage] = useState<string>("");
 
   const generateDemo = async () => {
     setIsLoading(true);
@@ -55,12 +56,18 @@ export default function WorkingDemo(): JSX.Element {
     try {
       const form = new FormData();
       form.append("file", file);
+      if (language) form.append("language", language);
       // Try real STT first with a timeout and clear fallbacks
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 90000);
       let res: Response;
       try {
-        res = await fetch("/api/process-audio", {
+        // Route selection: use Whisper for Turkish/Georgian or if user chose a language explicitly
+        const shouldUseWhisper = ["tr", "ka"].includes(language);
+        const endpoint = shouldUseWhisper
+          ? "/api/whisper"
+          : "/api/process-audio";
+        res = await fetch(endpoint, {
           method: "POST",
           body: form,
           signal: controller.signal,
@@ -88,8 +95,19 @@ export default function WorkingDemo(): JSX.Element {
         return;
       }
 
+      const contentType = res.headers.get("content-type") || "";
       const data = await res.json();
-      const analysis = (data.analysis || {}) as AnalysisResult;
+      // Normalize to our AnalysisResult shape
+      let analysis: AnalysisResult = {};
+      if (
+        contentType.includes("application/json") &&
+        "text" in data &&
+        !("analysis" in data)
+      ) {
+        analysis = { transcript: data.text };
+      } else {
+        analysis = (data.analysis || {}) as AnalysisResult;
+      }
       if (!analysis.transcript || analysis.transcript.trim().length === 0) {
         const fb = await fetch("/api/demo-fallback", {
           method: "POST",
@@ -155,6 +173,19 @@ export default function WorkingDemo(): JSX.Element {
                 <Upload className="w-5 h-5 text-primary-600" /> Upload Your
                 Audio
               </h3>
+              <div className="flex gap-3 mb-3">
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="border border-neutral-300 rounded-md px-2 py-1 text-sm"
+                >
+                  <option value="">Auto (Google/Whisper)</option>
+                  <option value="en">English (Whisper)</option>
+                  <option value="ru">Russian (Whisper)</option>
+                  <option value="tr">Turkish (Whisper)</option>
+                  <option value="ka">Georgian (Whisper)</option>
+                </select>
+              </div>
               <input
                 type="file"
                 accept="audio/mpeg,audio/mp3,audio/wav"
