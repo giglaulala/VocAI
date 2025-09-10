@@ -62,11 +62,19 @@ export default function WorkingDemo(): JSX.Element {
       const timer = setTimeout(() => controller.abort(), 90000);
       let res: Response;
       try {
-        // Route selection: use Whisper for Turkish/Georgian or if user chose a language explicitly
-        const shouldUseWhisper = ["tr", "ka"].includes(language);
-        const endpoint = shouldUseWhisper
-          ? "/api/whisper"
-          : "/api/process-audio";
+        // Route selection: use hybrid for diarization, Whisper for non-English languages, Google for English
+        let endpoint = "/api/process-audio"; // default to Google
+        if (language === "hybrid") {
+          endpoint = "/api/hybrid-stt";
+        } else if (["ru", "tr", "ka"].includes(language)) {
+          endpoint = "/api/whisper";
+        }
+        console.log(
+          "🎯 Selected endpoint for language",
+          language,
+          ":",
+          endpoint
+        );
         res = await fetch(endpoint, {
           method: "POST",
           body: form,
@@ -99,13 +107,18 @@ export default function WorkingDemo(): JSX.Element {
       const data = await res.json();
       // Normalize to our AnalysisResult shape
       let analysis: AnalysisResult = {};
-      if (
+      if (contentType.includes("application/json") && "analysis" in data) {
+        // Whisper route returns analysis directly
+        analysis = data.analysis as AnalysisResult;
+      } else if (
         contentType.includes("application/json") &&
         "text" in data &&
         !("analysis" in data)
       ) {
+        // Fallback for text-only responses
         analysis = { transcript: data.text };
       } else {
+        // Google route returns data.analysis
         analysis = (data.analysis || {}) as AnalysisResult;
       }
       if (!analysis.transcript || analysis.transcript.trim().length === 0) {
@@ -184,6 +197,7 @@ export default function WorkingDemo(): JSX.Element {
                   <option value="ru">Russian (Whisper)</option>
                   <option value="tr">Turkish (Whisper)</option>
                   <option value="ka">Georgian (Whisper)</option>
+                  <option value="hybrid">Hybrid (Whisper + Diarization)</option>
                 </select>
               </div>
               <input
@@ -331,6 +345,12 @@ export default function WorkingDemo(): JSX.Element {
                       <p className="font-semibold text-neutral-900 capitalize">
                         {analysisResult.sentiment?.label || "neutral"}
                       </p>
+                      {analysisResult.sentiment?.score && (
+                        <p className="text-xs text-neutral-500 mt-1">
+                          {(analysisResult.sentiment.score * 100).toFixed(0)}%
+                          confidence
+                        </p>
+                      )}
                     </div>
                     <div className="text-center p-4 rounded-lg bg-neutral-50">
                       <Clock className="w-8 h-8 text-accent-600 mx-auto mb-2" />
