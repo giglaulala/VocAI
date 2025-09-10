@@ -292,8 +292,8 @@ export async function POST(req: Request) {
       .trim();
     console.log("📝 Final transcript:", transcript);
 
-    // Minimal shaping to fit the demo UI; conversation is not available without diarization
-    const analysis = {
+    // If we have a transcript, analyze it with AI
+    let analysis = {
       transcript,
       conversation: [],
       sentiment: { label: "neutral" },
@@ -302,6 +302,38 @@ export async function POST(req: Request) {
       actionItems: [],
       provider: "google-speech-to-text",
     };
+
+    if (transcript.trim()) {
+      try {
+        console.log("🤖 Analyzing transcript with AI...");
+        const analysisRes = await fetch(
+          `${req.url.split("/api")[0]}/api/analyze-text`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              transcript,
+              language: "en", // Google route is hardcoded to English for now
+            }),
+          }
+        );
+
+        if (analysisRes.ok) {
+          const analysisData = await analysisRes.json();
+          analysis = {
+            ...analysis,
+            sentiment: analysisData.analysis?.sentiment || { label: "neutral" },
+            topics: analysisData.analysis?.topics || [],
+            actionItems: analysisData.analysis?.actionItems || [],
+          };
+          console.log("✅ AI analysis completed");
+        } else {
+          console.log("⚠️ AI analysis failed, using defaults");
+        }
+      } catch (analysisError) {
+        console.error("❌ Analysis failed:", analysisError);
+      }
+    }
 
     console.log("🎉 Success! Returning analysis");
     return NextResponse.json({ analysis }, { status: 200 });
