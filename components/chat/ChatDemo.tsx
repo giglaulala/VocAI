@@ -72,7 +72,24 @@ export default function ChatDemo(): JSX.Element {
 
   const messages = useMemo(() => {
     const turns = analysisResult?.conversation || [];
-    if (turns.length > 0) return turns;
+    if (turns.length > 0) {
+      // Heuristic: sometimes diarization returns many tiny/garbled segments.
+      // BUT if the provider is ai-diarization, we trust it and render as chat.
+      if (analysisResult?.provider === "ai-diarization") return turns;
+      const total = turns.length;
+      const zeroTsCount = turns.filter(
+        (t) => !t.timestamp || t.timestamp === "00:00" || t.timestamp === "—"
+      ).length;
+      const shortMsgCount = turns.filter((t) => {
+        const wc = (t.message || "").trim().split(/\s+/).filter(Boolean).length;
+        return wc <= 3;
+      }).length;
+      const looksBad =
+        total >= 6 &&
+        (zeroTsCount / total >= 0.8 || shortMsgCount / total >= 0.6);
+      if (!looksBad) return turns;
+      // Fallback to the more reliable Whisper transcript when diarization looks bad
+    }
     // fallback to transcript as single message when available
     return analysisResult?.transcript
       ? [
@@ -113,12 +130,17 @@ export default function ChatDemo(): JSX.Element {
       const timer = setTimeout(() => controller.abort(), 90000);
       let res: Response;
       try {
-        // Route selection: use hybrid for diarization, Whisper for non-English languages, Google for English
-        let endpoint = "/api/process-audio"; // default to Google
-        if (language === "hybrid") {
-          endpoint = "/api/hybrid-stt";
-        } else if (["ru", "tr", "ka"].includes(language)) {
+        // Route selection:
+        // - default/auto => hybrid (Whisper + diarization)
+        // - hybrid => hybrid
+        // - RU/TR/KA => Whisper
+        // - explicit "en" => Whisper
+        // - otherwise => hybrid
+        let endpoint = "/api/hybrid-stt"; // default to hybrid to ensure diarization
+        if (["ru", "tr", "ka", "en"].includes(language)) {
           endpoint = "/api/whisper";
+        } else if (language === "hybrid" || language === "") {
+          endpoint = "/api/hybrid-stt";
         }
         console.log(
           "🎯 Selected endpoint for language",
@@ -131,6 +153,11 @@ export default function ChatDemo(): JSX.Element {
           body: form,
           signal: controller.signal,
         });
+        console.log(
+          "📡 [uploadFile] Primary response:",
+          res.status,
+          res.statusText
+        );
       } catch (e) {
         res = new Response(null, { status: 599 });
       } finally {
@@ -139,8 +166,64 @@ export default function ChatDemo(): JSX.Element {
 
       if (!res.ok) {
         try {
-          await res.json();
+          const body = await res.text();
+          console.log("⚠️ [uploadFile] Primary non-OK body:", body);
         } catch {}
+        // Primary failed. Try Whisper as a secondary fallback before demo.
+        try {
+          const whisperForm = new FormData();
+          whisperForm.append("file", file);
+          if (language)
+            whisperForm.append(
+              "language",
+              language === "hybrid" ? "en" : language
+            );
+          const whisperRes = await fetch("/api/whisper", {
+            method: "POST",
+            body: whisperForm,
+            signal: controller.signal,
+          });
+          console.log(
+            "📡 [uploadFile] Whisper fallback response:",
+            whisperRes.status,
+            whisperRes.statusText
+          );
+          if (whisperRes.ok) {
+            const whisperData = await whisperRes.json();
+            let analysis: AnalysisResult = (whisperData.analysis ||
+              {}) as AnalysisResult;
+            // If conversation empty but we have transcript, try simple diarization enrichment
+            if (
+              (!analysis.conversation || analysis.conversation.length === 0) &&
+              (analysis.transcript || whisperData.text)
+            ) {
+              const transcriptText =
+                analysis.transcript || whisperData.text || "";
+              try {
+                const simpleRes = await fetch("/api/simple-diarization", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ transcript: transcriptText }),
+                });
+                if (simpleRes.ok) {
+                  const sd = await simpleRes.json();
+                  analysis = {
+                    ...analysis,
+                    transcript: transcriptText,
+                    conversation: sd.speakers || [],
+                  };
+                }
+              } catch {}
+            }
+            if (analysis.transcript && analysis.transcript.trim().length > 0) {
+              setUseFallback(false);
+              setAnalysisResult(analysis);
+              return;
+            }
+          }
+        } catch {}
+
+        // As a last resort, use demo fallback
         const fb = await fetch("/api/demo-fallback", {
           method: "POST",
           body: form,
@@ -153,6 +236,10 @@ export default function ChatDemo(): JSX.Element {
 
       const contentType = res.headers.get("content-type") || "";
       const data = await res.json();
+      console.log(
+        "🧪 [uploadFile] Primary JSON keys:",
+        Object.keys(data || {})
+      );
       // Normalize to our AnalysisResult shape
       let analysis: AnalysisResult = {};
       if (contentType.includes("application/json") && "analysis" in data) {
@@ -169,7 +256,82 @@ export default function ChatDemo(): JSX.Element {
         // Google route returns data.analysis
         analysis = (data.analysis || {}) as AnalysisResult;
       }
+      // If we have transcript but no/poor conversation and user selected Hybrid, ask AI to segment into chat
+      if (
+        (language === "hybrid" || language === "") &&
+        analysis.transcript &&
+        (!analysis.conversation || analysis.conversation.length === 0)
+      ) {
+        try {
+          const aiRes = await fetch("/api/ai-diarization", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              transcript: analysis.transcript,
+              language: "en",
+            }),
+          });
+          if (aiRes.ok) {
+            const aiData = await aiRes.json();
+            console.log("🧠 [ai-diarization] response:", aiData);
+            analysis = {
+              ...analysis,
+              conversation: aiData.speakers || [],
+              provider: "ai-diarization",
+            };
+          }
+        } catch {}
+      }
+
       if (!analysis.transcript || analysis.transcript.trim().length === 0) {
+        // Try to enrich via Whisper + simple diarization before demo
+        try {
+          const whisperForm = new FormData();
+          whisperForm.append("file", file);
+          if (language)
+            whisperForm.append(
+              "language",
+              language === "hybrid" ? "en" : language
+            );
+          const whisperRes = await fetch("/api/whisper", {
+            method: "POST",
+            body: whisperForm,
+            signal: controller.signal,
+          });
+          if (whisperRes.ok) {
+            const whisperData = await whisperRes.json();
+            let enriched: AnalysisResult = (whisperData.analysis ||
+              {}) as AnalysisResult;
+            if (
+              (!enriched.conversation || enriched.conversation.length === 0) &&
+              (enriched.transcript || whisperData.text)
+            ) {
+              const transcriptText =
+                enriched.transcript || whisperData.text || "";
+              try {
+                const simpleRes = await fetch("/api/simple-diarization", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ transcript: transcriptText }),
+                });
+                if (simpleRes.ok) {
+                  const sd = await simpleRes.json();
+                  enriched = {
+                    ...enriched,
+                    transcript: transcriptText,
+                    conversation: sd.speakers || [],
+                  };
+                }
+              } catch {}
+            }
+            if (enriched.transcript && enriched.transcript.trim().length > 0) {
+              setUseFallback(false);
+              setAnalysisResult(enriched);
+              return;
+            }
+          }
+        } catch {}
+
         const fb = await fetch("/api/demo-fallback", {
           method: "POST",
           body: form,
@@ -180,8 +342,58 @@ export default function ChatDemo(): JSX.Element {
         return;
       }
       setUseFallback(false);
+      if (
+        analysis?.provider === "ai-diarization" ||
+        (analysis?.provider || "").includes("hybrid-whisper-ai")
+      ) {
+        try {
+          const preview = (analysis.conversation || []).slice(0, 6);
+          console.log("🧠 AI-segmented dialogue (preview):", preview);
+          console.log("🧠 AI-segmented meta:", {
+            provider: analysis.provider,
+            totalTurns: analysis.conversation?.length || 0,
+          });
+        } catch {}
+      }
       console.log("🎯 Setting analysis result:", analysis);
       setAnalysisResult(analysis);
+
+      // Immediately after accepting the analysis, send the EXACT transcript to AI for dialogue segmentation.
+      // This guarantees the AI sees the same text you see in the log above.
+      try {
+        const acceptedTranscript = (analysis.transcript || "").trim();
+        if (
+          (language === "hybrid" || language === "") &&
+          acceptedTranscript.length > 0
+        ) {
+          const aiPostRes = await fetch("/api/ai-diarization", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              transcript: acceptedTranscript,
+              language: "en",
+            }),
+          });
+          if (aiPostRes.ok) {
+            const aiPostData = await aiPostRes.json();
+            console.log("🧠 [post-set] AI diarization output:", aiPostData);
+            if (
+              Array.isArray(aiPostData.speakers) &&
+              aiPostData.speakers.length > 0
+            ) {
+              setAnalysisResult((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      conversation: aiPostData.speakers,
+                      provider: "ai-diarization",
+                    }
+                  : prev
+              );
+            }
+          }
+        }
+      } catch {}
     } catch (e) {
       try {
         const form = new FormData();

@@ -7,7 +7,8 @@ export async function POST(req: Request) {
   try {
     const form = await req.formData();
     const file = form.get("file");
-    const language = (form.get("language") as string | null)?.trim() || "en";
+    const requestedLanguage =
+      (form.get("language") as string | null)?.trim() || "en";
 
     if (!(file instanceof Blob)) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -19,7 +20,12 @@ export async function POST(req: Request) {
     console.log("📝 Step 1: Transcribing with Whisper...");
     const whisperForm = new FormData();
     whisperForm.append("file", file);
-    whisperForm.append("language", language);
+    // Normalize language for Whisper: do not pass "hybrid" through
+    const whisperLanguage =
+      requestedLanguage && requestedLanguage !== "hybrid"
+        ? requestedLanguage
+        : "en";
+    whisperForm.append("language", whisperLanguage);
     whisperForm.append("model", "gpt-4o-mini-transcribe");
 
     const whisperRes = await fetch(`${req.url.split("/api")[0]}/api/whisper`, {
@@ -117,7 +123,40 @@ export async function POST(req: Request) {
       }
     }
 
-    // Step 3: Get AI analysis
+    // Step 3: Use AI to segment transcript into dialogue (preferred over raw diarization)
+    console.log("🧠 Step 3: Segmenting transcript into dialogue via AI...");
+    try {
+      const aiSegmentationRes = await fetch(
+        `${req.url.split("/api")[0]}/api/ai-diarization`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transcript, language }),
+        }
+      );
+      if (aiSegmentationRes.ok) {
+        const aiSegmentationData = await aiSegmentationRes.json();
+        if (
+          Array.isArray(aiSegmentationData.speakers) &&
+          aiSegmentationData.speakers.length > 0
+        ) {
+          speakers = aiSegmentationData.speakers;
+          console.log(
+            "✅ AI dialogue segmentation completed:",
+            speakers.length,
+            "turns"
+          );
+        }
+      } else {
+        console.log(
+          "⚠️ AI dialogue segmentation failed, keeping previous speakers"
+        );
+      }
+    } catch (segErr) {
+      console.log("⚠️ AI dialogue segmentation error:", segErr);
+    }
+
+    // Step 4: Get AI analysis
     console.log("🤖 Step 3: Analyzing with AI...");
     let analysis = {
       sentiment: { label: "neutral", score: 0.5 },
@@ -146,7 +185,7 @@ export async function POST(req: Request) {
       console.log("⚠️ AI analysis error:", analysisError);
     }
 
-    // Step 4: Combine results
+    // Step 5: Combine results
     const result = {
       transcript,
       conversation: speakers,
@@ -157,7 +196,7 @@ export async function POST(req: Request) {
           : undefined,
       topics: analysis.topics,
       actionItems: analysis.actionItems,
-      provider: "hybrid-whisper-google",
+      provider: "hybrid-whisper-ai",
     };
 
     console.log("🎉 Hybrid STT completed successfully");
