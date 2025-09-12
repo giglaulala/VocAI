@@ -390,6 +390,34 @@ export default function ChatDemo(): JSX.Element {
                     }
                   : prev
               );
+
+              // After conversation is set, fetch insights (sentiment, topics, action items)
+              try {
+                const insightsRes = await fetch("/api/analyze-text", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    transcript: acceptedTranscript,
+                    language: "en",
+                  }),
+                });
+                if (insightsRes.ok) {
+                  const insights = await insightsRes.json();
+                  console.log("✨ [post-set] Insights:", insights);
+                  setAnalysisResult((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          sentiment:
+                            insights.analysis?.sentiment || prev.sentiment,
+                          topics: insights.analysis?.topics || prev.topics,
+                          actionItems:
+                            insights.analysis?.actionItems || prev.actionItems,
+                        }
+                      : prev
+                  );
+                }
+              } catch {}
             }
           }
         }
@@ -487,7 +515,14 @@ export default function ChatDemo(): JSX.Element {
           </div>
 
           <div className="h-[520px] overflow-y-auto p-4 space-y-3 bg-neutral-50">
-            {messages.length === 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full text-neutral-500">
+                <div className="flex items-center gap-2 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Processing audio and formatting dialogue…</span>
+                </div>
+              </div>
+            ) : messages.length === 0 ? (
               <div className="flex items-center justify-center h-full text-neutral-500">
                 <div className="text-center">
                   <Sparkles className="w-10 h-10 mx-auto mb-2 text-neutral-300" />
