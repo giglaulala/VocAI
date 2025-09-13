@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   Phone,
   Mail,
@@ -81,8 +82,13 @@ export default function Footer() {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center">
-                <Phone className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 rounded-xl overflow-hidden">
+                <Image
+                  src={require("../vocailogo.png")}
+                  alt="VocAI logo"
+                  width={40}
+                  height={40}
+                />
               </div>
               <span className="text-2xl font-bold text-white">VocAI</span>
             </motion.div>

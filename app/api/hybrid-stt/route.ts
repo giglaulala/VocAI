@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const form = await req.formData();
     const file = form.get("file");
     const requestedLanguage =
-      (form.get("language") as string | null)?.trim() || "en";
+      (form.get("language") as string | null)?.trim() || "";
 
     if (!(file instanceof Blob)) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -21,11 +21,10 @@ export async function POST(req: Request) {
     const whisperForm = new FormData();
     whisperForm.append("file", file);
     // Normalize language for Whisper: do not pass "hybrid" through
-    const whisperLanguage =
-      requestedLanguage && requestedLanguage !== "hybrid"
-        ? requestedLanguage
-        : "en";
-    whisperForm.append("language", whisperLanguage);
+    // If language is explicitly provided (and not 'hybrid'), pass it through; otherwise let Whisper auto-detect
+    if (requestedLanguage && requestedLanguage !== "hybrid") {
+      whisperForm.append("language", requestedLanguage);
+    }
     whisperForm.append("model", "gpt-4o-mini-transcribe");
 
     const whisperRes = await fetch(`${req.url.split("/api")[0]}/api/whisper`, {
@@ -52,7 +51,24 @@ export async function POST(req: Request) {
       );
     }
 
-    // Step 2: Get speaker diarization from Google
+    // Step 2: Detect language from transcript (lightweight heuristic for hybrid)
+    const detectedLanguage = (() => {
+      // Georgian script
+      if (/[\u10A0-\u10FF\u2D00-\u2D2F]/.test(transcript)) return "ka";
+      // Cyrillic script (approx Russian)
+      if (/[\u0400-\u04FF]/.test(transcript)) return "ru";
+      // Turkish specific characters
+      if (/[çğıöşüÇĞİÖŞÜ]/.test(transcript)) return "tr";
+      return "en";
+    })();
+
+    // Choose effective language for subsequent AI calls
+    const effectiveLanguage =
+      !requestedLanguage || requestedLanguage === "hybrid"
+        ? detectedLanguage
+        : requestedLanguage;
+
+    // Step 3 (renumbered below): Get speaker diarization from Google
     console.log("🎭 Step 2: Getting speaker diarization from Google...");
     const diarizationForm = new FormData();
     diarizationForm.append("file", file);
@@ -131,7 +147,7 @@ export async function POST(req: Request) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transcript, language }),
+          body: JSON.stringify({ transcript, language: effectiveLanguage }),
         }
       );
       if (aiSegmentationRes.ok) {
@@ -170,7 +186,7 @@ export async function POST(req: Request) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transcript, language }),
+          body: JSON.stringify({ transcript, language: effectiveLanguage }),
         }
       );
 
@@ -197,6 +213,7 @@ export async function POST(req: Request) {
       topics: analysis.topics,
       actionItems: analysis.actionItems,
       provider: "hybrid-whisper-ai",
+      language: effectiveLanguage,
     };
 
     console.log("🎉 Hybrid STT completed successfully");

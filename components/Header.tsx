@@ -2,15 +2,16 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Menu, X, Phone, Brain } from "lucide-react";
+import Image from "next/image";
+import { Menu, X } from "lucide-react";
+import vocailogo from "../vocailogo.png";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
-    { name: "Features", href: "/#features" },
-    { name: "How It Works", href: "/#how-it-works" },
-    { name: "Demo", href: "/demo" },
+    { name: "Home", href: "/" },
+    { name: "Product", href: "/#features" },
     { name: "Pricing", href: "/#pricing" },
   ];
 
@@ -26,8 +27,14 @@ export default function Header() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-glow">
-              <Phone className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-glow">
+              <Image
+                src={vocailogo}
+                alt="VocAI logo"
+                width={40}
+                height={40}
+                priority
+              />
             </div>
             <span className="text-2xl font-bold gradient-text">VocAI</span>
           </motion.a>
@@ -63,7 +70,7 @@ export default function Header() {
               whileHover={{ scale: 1.05, y: -2 }}
               transition={{ duration: 0.2 }}
             >
-              Get Started
+              Demo
             </motion.a>
           </div>
 
@@ -111,7 +118,7 @@ export default function Header() {
                   href="/demo"
                   className="block w-full text-center px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-200"
                 >
-                  Get Started
+                  Demo
                 </a>
               </div>
             </div>

@@ -28,6 +28,7 @@ type AnalysisResult = {
   topics?: string[];
   actionItems?: string[];
   provider?: string;
+  language?: string;
 };
 
 export default function ChatDemo(): JSX.Element {
@@ -256,6 +257,12 @@ export default function ChatDemo(): JSX.Element {
         // Google route returns data.analysis
         analysis = (data.analysis || {}) as AnalysisResult;
       }
+      // Determine effective language for follow-up AI calls
+      const effectiveLanguage =
+        language === "hybrid" || language === ""
+          ? analysis.language || "en"
+          : language;
+
       // If we have transcript but no/poor conversation and user selected Hybrid, ask AI to segment into chat
       if (
         (language === "hybrid" || language === "") &&
@@ -268,7 +275,7 @@ export default function ChatDemo(): JSX.Element {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               transcript: analysis.transcript,
-              language: "en",
+              language: effectiveLanguage,
             }),
           });
           if (aiRes.ok) {
@@ -371,7 +378,7 @@ export default function ChatDemo(): JSX.Element {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               transcript: acceptedTranscript,
-              language: "en",
+              language: effectiveLanguage,
             }),
           });
           if (aiPostRes.ok) {
@@ -398,7 +405,7 @@ export default function ChatDemo(): JSX.Element {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     transcript: acceptedTranscript,
-                    language: "en",
+                    language: effectiveLanguage,
                   }),
                 });
                 if (insightsRes.ok) {
@@ -503,15 +510,23 @@ export default function ChatDemo(): JSX.Element {
                 Conversation
               </span>
             </div>
-            {useFallback ? (
-              <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2 py-1">
-                Demo mode
-              </span>
-            ) : (
-              <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-2 py-1">
-                Live STT
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              <a
+                href="/#api"
+                className="text-xs inline-flex items-center gap-2 px-3 py-1.5 border border-primary-200 text-primary-700 hover:bg-primary-50 rounded-md font-medium"
+              >
+                Bind your API
+              </a>
+              {useFallback ? (
+                <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2 py-1">
+                  Demo mode
+                </span>
+              ) : (
+                <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-2 py-1">
+                  Live STT
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="h-[520px] overflow-y-auto p-4 space-y-3 bg-neutral-50">
@@ -656,11 +671,16 @@ export default function ChatDemo(): JSX.Element {
               <p className="text-sm text-neutral-600 mb-1">Duration</p>
               <p className="font-semibold text-neutral-900">
                 {analysisResult?.duration
-                  ? `${Math.floor((analysisResult?.duration || 0) / 60)}:${(
-                      (analysisResult?.duration || 0) % 60
-                    )
-                      .toString()
-                      .padStart(2, "0")}`
+                  ? (() => {
+                      const totalSeconds = Math.floor(
+                        analysisResult?.duration || 0
+                      );
+                      const minutes = Math.floor(totalSeconds / 60);
+                      const seconds = (totalSeconds % 60)
+                        .toString()
+                        .padStart(2, "0");
+                      return `${minutes}:${seconds}`;
+                    })()
                   : "0:00"}
               </p>
             </div>

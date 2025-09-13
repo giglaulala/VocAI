@@ -19,6 +19,7 @@ import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
 import WorkingDemo from "@/components/WorkingDemo";
+import Pricing from "@/components/Pricing";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -31,6 +32,7 @@ export default function Home() {
       <Features />
       <HowItWorks />
       <WorkingDemo />
+      <Pricing />
       <Footer />
     </main>
   );
