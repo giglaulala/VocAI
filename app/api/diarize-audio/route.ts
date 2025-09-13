@@ -56,16 +56,38 @@ export async function POST(req: Request) {
     console.log("🔑 Initializing Google Speech client for diarization...");
     let client: SpeechClient;
     const inlineJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    const base64Json = process.env.GOOGLE_CREDENTIALS_BASE64;
     const keyFilePath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-    if (inlineJson) {
+    if (base64Json) {
+      console.log("🔑 Using Base64 encoded credentials");
+      try {
+        const jsonString = Buffer.from(base64Json, "base64").toString();
+        const credentials = JSON.parse(jsonString);
+        client = new SpeechClient({ credentials });
+        console.log("✅ Base64 credentials parsed successfully");
+      } catch (e: any) {
+        console.log("❌ Failed to parse Base64 credentials:", e?.message);
+        return NextResponse.json(
+          {
+            error: "Invalid GOOGLE_CREDENTIALS_BASE64",
+            details: e?.message,
+          },
+          { status: 500 }
+        );
+      }
+    } else if (inlineJson) {
       console.log("🔑 Using inline JSON credentials");
+      console.log("🔑 JSON length:", inlineJson.length);
+      console.log("🔑 JSON preview:", inlineJson.substring(0, 100) + "...");
       try {
         const credentials = JSON.parse(inlineJson);
+        console.log("🔑 Parsed credentials keys:", Object.keys(credentials));
         client = new SpeechClient({ credentials });
         console.log("✅ Inline credentials parsed successfully");
       } catch (e: any) {
         console.log("❌ Failed to parse inline credentials:", e?.message);
+        console.log("❌ JSON that failed to parse:", inlineJson);
         return NextResponse.json(
           {
             error: "Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON",
