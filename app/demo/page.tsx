@@ -45,7 +45,7 @@ export default function DemoDashboardPage(): JSX.Element {
       <Header />
       <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-primary-50 to-white">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold text-neutral-900">
                 Analytics Dashboard
@@ -54,8 +54,8 @@ export default function DemoDashboardPage(): JSX.Element {
                 Real-time insights and performance metrics
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="text-left sm:text-right">
                 <div className="text-sm text-neutral-500">Last updated</div>
                 <div className="text-sm font-medium text-neutral-900">
                   2 minutes ago
@@ -63,7 +63,7 @@ export default function DemoDashboardPage(): JSX.Element {
               </div>
               <motion.a
                 href="/demo/analytics"
-                className="inline-flex items-center gap-2 px-5 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-200 shadow-glow hover:shadow-lg"
+                className="inline-flex items-center gap-2 px-4 sm:px-5 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-all duration-200 shadow-glow hover:shadow-lg w-full sm:w-auto justify-center"
                 whileHover={{ y: -2, scale: 1.02 }}
               >
                 <BarChart3 className="w-5 h-5" />

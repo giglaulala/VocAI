@@ -172,7 +172,7 @@ export default function WorkingDemo(): JSX.Element {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
           {/* Left controls */}
           <motion.div
             className="space-y-6"
@@ -181,16 +181,16 @@ export default function WorkingDemo(): JSX.Element {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
+            <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
               <h3 className="text-lg font-semibold text-neutral-900 mb-4 flex items-center gap-2">
                 <Upload className="w-5 h-5 text-primary-600" /> Upload Your
                 Audio
               </h3>
-              <div className="flex gap-3 mb-3">
+              <div className="flex flex-col sm:flex-row gap-3 mb-3">
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="border border-neutral-300 rounded-md px-2 py-1 text-sm"
+                  className="border border-neutral-300 rounded-md px-2 py-1 text-sm w-full sm:w-auto"
                 >
                   <option value="">Auto (Google/Whisper)</option>
                   <option value="en">English (Whisper)</option>
@@ -214,7 +214,7 @@ export default function WorkingDemo(): JSX.Element {
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
+            <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
               <h3 className="text-lg font-semibold text-neutral-900 mb-4 flex items-center gap-2">
                 <Play className="w-5 h-5 text-accent-600" /> Generate Sample
                 Call
@@ -245,7 +245,7 @@ export default function WorkingDemo(): JSX.Element {
           >
             {analysisResult ? (
               <>
-                <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
+                <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
                   <h3 className="text-lg font-semibold text-neutral-900 mb-4 flex items-center gap-2">
                     <MessageSquare className="w-5 h-5 text-primary-600" /> Full
                     Transcript
@@ -257,7 +257,7 @@ export default function WorkingDemo(): JSX.Element {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
+                <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
                   <h3 className="text-lg font-semibold text-neutral-900 mb-4">
                     Conversation Flow
                   </h3>
@@ -334,7 +334,7 @@ export default function WorkingDemo(): JSX.Element {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
+                <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
                   <h3 className="text-lg font-semibold text-neutral-900 mb-4">
                     AI Analysis
                   </h3>
@@ -368,7 +368,7 @@ export default function WorkingDemo(): JSX.Element {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
+                <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
                   <h3 className="text-lg font-semibold text-neutral-900 mb-4">
                     Key Topics
                   </h3>

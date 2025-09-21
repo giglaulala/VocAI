@@ -457,13 +457,13 @@ export default function ChatDemo(): JSX.Element {
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <aside className="lg:col-span-3 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+        <aside className="lg:col-span-3 space-y-4 lg:space-y-6">
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-lg overflow-hidden">
             <div className="px-4 py-3 border-b border-neutral-200">
               <h3 className="text-sm font-semibold text-neutral-900">Chats</h3>
             </div>
-            <div className="max-h-[620px] overflow-y-auto">
+            <div className="max-h-[300px] sm:max-h-[400px] lg:max-h-[620px] overflow-y-auto">
               {fakeThreads.map((t) => (
                 <button
                   key={t.id}
@@ -539,7 +539,7 @@ export default function ChatDemo(): JSX.Element {
 
         <div className="lg:col-span-6">
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-lg overflow-hidden">
-            <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
+            <div className="px-3 sm:px-4 py-3 border-b border-neutral-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-primary-600" />
                 <span className="font-semibold text-neutral-900">
@@ -549,7 +549,7 @@ export default function ChatDemo(): JSX.Element {
               <div className="flex items-center gap-2">
                 <a
                   href="/#api"
-                  className="text-xs inline-flex items-center gap-2 px-3 py-1.5 border border-primary-200 text-primary-700 hover:bg-primary-50 rounded-md font-medium"
+                  className="text-xs inline-flex items-center gap-2 px-2 sm:px-3 py-1.5 border border-primary-200 text-primary-700 hover:bg-primary-50 rounded-md font-medium"
                 >
                   Bind your API
                 </a>
@@ -565,7 +565,7 @@ export default function ChatDemo(): JSX.Element {
               </div>
             </div>
 
-            <div className="h-[520px] overflow-y-auto p-4 space-y-3 bg-neutral-50">
+            <div className="h-[300px] sm:h-[400px] lg:h-[520px] overflow-y-auto p-3 sm:p-4 space-y-3 bg-neutral-50">
               {isLoading ? (
                 <div className="flex items-center justify-center h-full text-neutral-500">
                   <div className="flex items-center gap-2 text-sm">
@@ -687,16 +687,18 @@ export default function ChatDemo(): JSX.Element {
           </div>
         </div>
 
-        <div className="lg:col-span-3 space-y-6">
-          <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
+        <div className="lg:col-span-3 space-y-4 lg:space-y-6">
+          <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-neutral-900 mb-4">
               AI Analysis
             </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 rounded-lg bg-neutral-50">
-                <Sparkles className="w-8 h-8 text-primary-600 mx-auto mb-2" />
-                <p className="text-sm text-neutral-600 mb-1">Sentiment</p>
-                <p className="font-semibold text-neutral-900 capitalize">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="text-center p-3 sm:p-4 rounded-lg bg-neutral-50">
+                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary-600 mx-auto mb-2" />
+                <p className="text-xs sm:text-sm text-neutral-600 mb-1">
+                  Sentiment
+                </p>
+                <p className="text-sm sm:text-base font-semibold text-neutral-900 capitalize">
                   {analysisResult?.sentiment?.label || "neutral"}
                 </p>
                 {analysisResult?.sentiment?.score && (
@@ -706,10 +708,12 @@ export default function ChatDemo(): JSX.Element {
                   </p>
                 )}
               </div>
-              <div className="text-center p-4 rounded-lg bg-neutral-50">
-                <Clock className="w-8 h-8 text-accent-600 mx-auto mb-2" />
-                <p className="text-sm text-neutral-600 mb-1">Duration</p>
-                <p className="font-semibold text-neutral-900">
+              <div className="text-center p-3 sm:p-4 rounded-lg bg-neutral-50">
+                <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-accent-600 mx-auto mb-2" />
+                <p className="text-xs sm:text-sm text-neutral-600 mb-1">
+                  Duration
+                </p>
+                <p className="text-sm sm:text-base font-semibold text-neutral-900">
                   {analysisResult?.duration
                     ? (() => {
                         const totalSeconds = Math.floor(
@@ -727,7 +731,7 @@ export default function ChatDemo(): JSX.Element {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
+          <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-neutral-900 mb-4">
               Key Topics
             </h3>
@@ -736,7 +740,7 @@ export default function ChatDemo(): JSX.Element {
                 analysisResult.topics.map((topic, index) => (
                   <span
                     key={index}
-                    className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm"
+                    className="px-2 sm:px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-xs sm:text-sm"
                   >
                     {topic}
                   </span>
@@ -752,76 +756,92 @@ export default function ChatDemo(): JSX.Element {
       </div>
 
       {analysisResult?.metrics && (
-        <div className="mt-6 bg-white rounded-2xl border border-neutral-200 p-6 shadow-lg">
+        <div className="mt-4 sm:mt-6 bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
           <h3 className="text-lg font-semibold text-neutral-900 mb-4">
             Support Metrics
           </h3>
-          <div className="grid grid-cols-7 gap-4">
-            <div className="text-center p-4 rounded-lg bg-green-50 border border-green-200 min-w-[120px]">
-              <div className="text-2xl font-bold text-green-700 mb-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
+            <div className="text-center p-3 sm:p-4 rounded-lg bg-green-50 border border-green-200 min-w-[100px] sm:min-w-[120px]">
+              <div className="text-lg sm:text-2xl font-bold text-green-700 mb-1 sm:mb-2">
                 {analysisResult.metrics.csat}/5
               </div>
-              <div className="text-sm text-green-600 font-medium">CSAT</div>
-              <div className="text-xs text-green-500">
+              <div className="text-xs sm:text-sm text-green-600 font-medium">
+                CSAT
+              </div>
+              <div className="text-xs text-green-500 hidden sm:block">
                 Customer Satisfaction
               </div>
             </div>
 
-            <div className="text-center p-4 rounded-lg bg-blue-50 border border-blue-200 min-w-[120px]">
-              <div className="text-2xl font-bold text-blue-700 mb-2">
+            <div className="text-center p-3 sm:p-4 rounded-lg bg-blue-50 border border-blue-200 min-w-[100px] sm:min-w-[120px]">
+              <div className="text-lg sm:text-2xl font-bold text-blue-700 mb-1 sm:mb-2">
                 {analysisResult.metrics.fcr}%
               </div>
-              <div className="text-sm text-blue-600 font-medium">FCR</div>
-              <div className="text-xs text-blue-500">
+              <div className="text-xs sm:text-sm text-blue-600 font-medium">
+                FCR
+              </div>
+              <div className="text-xs text-blue-500 hidden sm:block">
                 First Contact Resolution
               </div>
             </div>
 
-            <div className="text-center p-4 rounded-lg bg-purple-50 border border-purple-200 min-w-[120px]">
-              <div className="text-2xl font-bold text-purple-700 mb-2">
+            <div className="text-center p-3 sm:p-4 rounded-lg bg-purple-50 border border-purple-200 min-w-[100px] sm:min-w-[120px]">
+              <div className="text-lg sm:text-2xl font-bold text-purple-700 mb-1 sm:mb-2">
                 {Math.floor(analysisResult.metrics.aht / 60)}:
                 {(analysisResult.metrics.aht % 60).toString().padStart(2, "0")}
               </div>
-              <div className="text-sm text-purple-600 font-medium">AHT</div>
-              <div className="text-xs text-purple-500">Average Handle Time</div>
+              <div className="text-xs sm:text-sm text-purple-600 font-medium">
+                AHT
+              </div>
+              <div className="text-xs text-purple-500 hidden sm:block">
+                Average Handle Time
+              </div>
             </div>
 
-            <div className="text-center p-4 rounded-lg bg-orange-50 border border-orange-200 min-w-[120px]">
-              <div className="text-2xl font-bold text-orange-700 mb-2">
+            <div className="text-center p-3 sm:p-4 rounded-lg bg-orange-50 border border-orange-200 min-w-[100px] sm:min-w-[120px]">
+              <div className="text-lg sm:text-2xl font-bold text-orange-700 mb-1 sm:mb-2">
                 {analysisResult.metrics.responseTime}s
               </div>
-              <div className="text-sm text-orange-600 font-medium">
+              <div className="text-xs sm:text-sm text-orange-600 font-medium">
                 Response
               </div>
-              <div className="text-xs text-orange-500">Avg Response Time</div>
+              <div className="text-xs text-orange-500 hidden sm:block">
+                Avg Response Time
+              </div>
             </div>
 
-            <div className="text-center p-4 rounded-lg bg-red-50 border border-red-200 min-w-[120px]">
-              <div className="text-2xl font-bold text-red-700 mb-2">
+            <div className="text-center p-3 sm:p-4 rounded-lg bg-red-50 border border-red-200 min-w-[100px] sm:min-w-[120px]">
+              <div className="text-lg sm:text-2xl font-bold text-red-700 mb-1 sm:mb-2">
                 {analysisResult.metrics.transfers}
               </div>
-              <div className="text-sm text-red-600 font-medium">Transfers</div>
-              <div className="text-xs text-red-500">Number of Transfers</div>
+              <div className="text-xs sm:text-sm text-red-600 font-medium">
+                Transfers
+              </div>
+              <div className="text-xs text-red-500 hidden sm:block">
+                Number of Transfers
+              </div>
             </div>
 
-            <div className="text-center p-4 rounded-lg bg-indigo-50 border border-indigo-200 min-w-[120px]">
-              <div className="text-2xl font-bold text-indigo-700 mb-2">
+            <div className="text-center p-3 sm:p-4 rounded-lg bg-indigo-50 border border-indigo-200 min-w-[100px] sm:min-w-[120px]">
+              <div className="text-lg sm:text-2xl font-bold text-indigo-700 mb-1 sm:mb-2">
                 {Math.round(analysisResult.metrics.sentimentScore * 100)}%
               </div>
-              <div className="text-sm text-indigo-600 font-medium">
+              <div className="text-xs sm:text-sm text-indigo-600 font-medium">
                 Sentiment
               </div>
-              <div className="text-xs text-indigo-500">AI Sentiment Score</div>
+              <div className="text-xs text-indigo-500 hidden sm:block">
+                AI Sentiment Score
+              </div>
             </div>
 
-            <div className="text-center p-4 rounded-lg bg-teal-50 border border-teal-200 min-w-[120px]">
-              <div className="text-2xl font-bold text-teal-700 mb-2">
+            <div className="text-center p-3 sm:p-4 rounded-lg bg-teal-50 border border-teal-200 min-w-[100px] sm:min-w-[120px]">
+              <div className="text-lg sm:text-2xl font-bold text-teal-700 mb-1 sm:mb-2">
                 {analysisResult.metrics.compliance}%
               </div>
-              <div className="text-sm text-teal-600 font-medium">
+              <div className="text-xs sm:text-sm text-teal-600 font-medium">
                 Compliance
               </div>
-              <div className="text-xs text-teal-500">
+              <div className="text-xs text-teal-500 hidden sm:block">
                 Policy & Script Adherence
               </div>
             </div>
