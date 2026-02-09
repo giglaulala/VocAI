@@ -3,8 +3,10 @@
 import Link from "next/link";
 import Header from "@/components/Header";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SignInPage(): JSX.Element {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -15,7 +17,7 @@ export default function SignInPage(): JSX.Element {
     try {
       // Placeholder auth submit
       await new Promise((r) => setTimeout(r, 800));
-      alert("Signed in (demo)");
+      router.push("/demo");
     } finally {
       setIsLoading(false);
     }
