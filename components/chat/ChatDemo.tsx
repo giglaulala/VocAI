@@ -52,6 +52,12 @@ export default function ChatDemo(): JSX.Element {
   const [lastUploadKind, setLastUploadKind] = useState<
     "audio" | "json" | "unknown" | null
   >(null);
+  const [isMetricsLoading, setIsMetricsLoading] = useState(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const metricsCacheRef = useRef<Map<string, AnalysisResult["metrics"]>>(
+    new Map(),
+  );
 
   const fakeThreads = [
     {
@@ -119,6 +125,8 @@ export default function ChatDemo(): JSX.Element {
   const generateDemo = async () => {
     setUploadError(null);
     setLastUploadKind(null);
+    setIsMetricsLoading(false);
+    setMetricsError(null);
     setIsLoading(true);
     try {
       const res = await fetch("/api/demo-fallback", {
@@ -133,6 +141,52 @@ export default function ChatDemo(): JSX.Element {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const conversationTurnsToAnalyticsMessages = (
+    turns: ConversationTurn[],
+  ): Array<{ timestamp?: string; sender?: string; text?: string }> => {
+    return (turns || []).map((t) => {
+      const speaker = (t.speaker || "").toLowerCase();
+      const sender =
+        speaker.includes("agent") || speaker.includes("support")
+          ? "agent"
+          : speaker.includes("customer") || speaker.includes("client")
+            ? "customer"
+            : speaker.includes("speaker 1")
+              ? "agent"
+              : speaker.includes("speaker 2")
+                ? "customer"
+                : t.speaker || "unknown";
+      return { timestamp: t.timestamp, sender, text: t.message };
+    });
+  };
+
+  const requestSupportMetrics = async (turns: ConversationTurn[]) => {
+    const payloadMessages = conversationTurnsToAnalyticsMessages(turns);
+    const cacheKey = JSON.stringify(payloadMessages).slice(0, 20000);
+    const cached = metricsCacheRef.current.get(cacheKey);
+    if (cached) return cached;
+
+    const res = await fetch("/api/support-metrics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: payloadMessages, model: "gpt-4o-mini" }),
+    });
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(t || "Support metrics analysis failed");
+    }
+
+    const data = await res.json();
+    const metrics = data?.metrics as AnalysisResult["metrics"];
+    metricsCacheRef.current.set(cacheKey, metrics);
+    return metrics;
   };
 
   const detectSelectedFileKind = (file: File): "audio" | "json" | "unknown" => {
@@ -208,6 +262,8 @@ export default function ChatDemo(): JSX.Element {
   const uploadJsonFile = async (file: File) => {
     setIsLoading(true);
     setUploadError(null);
+    setIsMetricsLoading(true);
+    setMetricsError(null);
     try {
       const text = await file.text();
       let parsed: any;
@@ -272,6 +328,21 @@ export default function ChatDemo(): JSX.Element {
           );
         }
       } catch {}
+
+      // Fetch real support metrics.
+      try {
+        const metrics = await requestSupportMetrics(conversation);
+        setAnalysisResult((prev) => (prev ? { ...prev, metrics } : prev));
+      } catch (e: any) {
+        const msg =
+          typeof e?.message === "string" && e.message.trim().length > 0
+            ? e.message
+            : "Support metrics analysis failed.";
+        setMetricsError(msg);
+        showToast("Support metrics analysis failed");
+      } finally {
+        setIsMetricsLoading(false);
+      }
     } catch (e: any) {
       const msg =
         typeof e?.message === "string" && e.message.trim().length > 0
@@ -279,6 +350,7 @@ export default function ChatDemo(): JSX.Element {
           : "Failed to read JSON file.";
       setUploadError(msg);
       setAnalysisResult(null);
+      setIsMetricsLoading(false);
     } finally {
       setIsLoading(false);
     }
@@ -286,6 +358,8 @@ export default function ChatDemo(): JSX.Element {
 
   const uploadAudioFile = async (file: File) => {
     setIsLoading(true);
+    setIsMetricsLoading(true);
+    setMetricsError(null);
     try {
       const form = new FormData();
       form.append("file", file);
@@ -383,6 +457,31 @@ export default function ChatDemo(): JSX.Element {
             if (analysis.transcript && analysis.transcript.trim().length > 0) {
               setDataSource("stt");
               setAnalysisResult(analysis);
+              try {
+                const turns =
+                  analysis.conversation && analysis.conversation.length > 0
+                    ? analysis.conversation
+                    : [
+                        {
+                          speaker: "Transcript",
+                          message: analysis.transcript,
+                          timestamp: "—",
+                        },
+                      ];
+                const metrics = await requestSupportMetrics(turns);
+                setAnalysisResult((prev) =>
+                  prev ? { ...prev, metrics } : prev,
+                );
+              } catch (e: any) {
+                const msg =
+                  typeof e?.message === "string" && e.message.trim().length > 0
+                    ? e.message
+                    : "Support metrics analysis failed.";
+                setMetricsError(msg);
+                showToast("Support metrics analysis failed");
+              } finally {
+                setIsMetricsLoading(false);
+              }
               return;
             }
           }
@@ -396,6 +495,7 @@ export default function ChatDemo(): JSX.Element {
         const fbData = await fb.json();
         setDataSource("demo");
         setAnalysisResult(fbData.analysis as AnalysisResult);
+        setIsMetricsLoading(false);
         return;
       }
 
@@ -498,6 +598,31 @@ export default function ChatDemo(): JSX.Element {
             if (enriched.transcript && enriched.transcript.trim().length > 0) {
               setDataSource("stt");
               setAnalysisResult(enriched);
+              try {
+                const turns =
+                  enriched.conversation && enriched.conversation.length > 0
+                    ? enriched.conversation
+                    : [
+                        {
+                          speaker: "Transcript",
+                          message: enriched.transcript || "",
+                          timestamp: "—",
+                        },
+                      ];
+                const metrics = await requestSupportMetrics(turns);
+                setAnalysisResult((prev) =>
+                  prev ? { ...prev, metrics } : prev,
+                );
+              } catch (e: any) {
+                const msg =
+                  typeof e?.message === "string" && e.message.trim().length > 0
+                    ? e.message
+                    : "Support metrics analysis failed.";
+                setMetricsError(msg);
+                showToast("Support metrics analysis failed");
+              } finally {
+                setIsMetricsLoading(false);
+              }
               return;
             }
           }
@@ -510,6 +635,7 @@ export default function ChatDemo(): JSX.Element {
         const fbData = await fb.json();
         setDataSource("demo");
         setAnalysisResult(fbData.analysis as AnalysisResult);
+        setIsMetricsLoading(false);
         return;
       }
       setDataSource("stt");
@@ -528,6 +654,34 @@ export default function ChatDemo(): JSX.Element {
       }
       console.log("🎯 Setting analysis result:", analysis);
       setAnalysisResult(analysis);
+
+      try {
+        const turns =
+          analysis.conversation && analysis.conversation.length > 0
+            ? analysis.conversation
+            : analysis.transcript
+              ? [
+                  {
+                    speaker: "Transcript",
+                    message: analysis.transcript,
+                    timestamp: "—",
+                  },
+                ]
+              : [];
+        if (turns.length > 0) {
+          const metrics = await requestSupportMetrics(turns);
+          setAnalysisResult((prev) => (prev ? { ...prev, metrics } : prev));
+        }
+      } catch (e: any) {
+        const msg =
+          typeof e?.message === "string" && e.message.trim().length > 0
+            ? e.message
+            : "Support metrics analysis failed.";
+        setMetricsError(msg);
+        showToast("Support metrics analysis failed");
+      } finally {
+        setIsMetricsLoading(false);
+      }
 
       // Immediately after accepting the analysis, send the EXACT transcript to AI for dialogue segmentation.
       // This guarantees the AI sees the same text you see in the log above.
@@ -604,6 +758,7 @@ export default function ChatDemo(): JSX.Element {
         const fbData = await fb.json();
         setDataSource("demo");
         setAnalysisResult(fbData.analysis as AnalysisResult);
+        setIsMetricsLoading(false);
       } catch {}
     } finally {
       setIsLoading(false);
@@ -612,6 +767,8 @@ export default function ChatDemo(): JSX.Element {
 
   const uploadFile = async (file: File) => {
     setUploadError(null);
+    setMetricsError(null);
+    setAnalysisResult(null);
     const kind = detectSelectedFileKind(file);
     setLastUploadKind(kind);
 
@@ -621,10 +778,17 @@ export default function ChatDemo(): JSX.Element {
     setUploadError(
       "Unsupported file type. Please upload an audio file (.mp3, .wav, .m4a, .ogg) or a .json file containing a `messages` array.",
     );
+    setIsMetricsLoading(false);
+    setMetricsError(null);
   };
 
   return (
     <>
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-lg text-sm text-neutral-900">
+          {toastMessage}
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         <aside className="lg:col-span-3 space-y-4 lg:space-y-6">
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-lg overflow-hidden">
@@ -944,15 +1108,40 @@ export default function ChatDemo(): JSX.Element {
         </div>
       </div>
 
-      {analysisResult?.metrics && (
+      {analysisResult && (analysisResult.metrics || isMetricsLoading) && (
         <div className="mt-4 sm:mt-6 bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 shadow-lg">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">
-            Support Metrics
-          </h3>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h3 className="text-lg font-semibold text-neutral-900">
+              Support Metrics
+            </h3>
+            {isMetricsLoading ? (
+              <span className="text-xs text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-md px-2 py-1 inline-flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Analyzing…
+              </span>
+            ) : dataSource === "demo" ? (
+              <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2 py-1">
+                Sample Data
+              </span>
+            ) : (
+              <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-2 py-1">
+                AI Analyzed
+              </span>
+            )}
+          </div>
+
+          {metricsError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              {metricsError}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
             <div className="text-center p-3 sm:p-4 rounded-lg bg-green-50 border border-green-200 min-w-[100px] sm:min-w-[120px]">
               <div className="text-lg sm:text-2xl font-bold text-green-700 mb-1 sm:mb-2">
-                {analysisResult.metrics.csat}/5
+                {analysisResult?.metrics
+                  ? `${analysisResult.metrics.csat}/5`
+                  : "—"}
               </div>
               <div className="text-xs sm:text-sm text-green-600 font-medium">
                 CSAT
@@ -964,7 +1153,9 @@ export default function ChatDemo(): JSX.Element {
 
             <div className="text-center p-3 sm:p-4 rounded-lg bg-blue-50 border border-blue-200 min-w-[100px] sm:min-w-[120px]">
               <div className="text-lg sm:text-2xl font-bold text-blue-700 mb-1 sm:mb-2">
-                {analysisResult.metrics.fcr}%
+                {analysisResult?.metrics
+                  ? `${analysisResult.metrics.fcr}%`
+                  : "—"}
               </div>
               <div className="text-xs sm:text-sm text-blue-600 font-medium">
                 FCR
@@ -976,8 +1167,13 @@ export default function ChatDemo(): JSX.Element {
 
             <div className="text-center p-3 sm:p-4 rounded-lg bg-purple-50 border border-purple-200 min-w-[100px] sm:min-w-[120px]">
               <div className="text-lg sm:text-2xl font-bold text-purple-700 mb-1 sm:mb-2">
-                {Math.floor(analysisResult.metrics.aht / 60)}:
-                {(analysisResult.metrics.aht % 60).toString().padStart(2, "0")}
+                {analysisResult?.metrics
+                  ? `${Math.floor(analysisResult.metrics.aht / 60)}:${(
+                      analysisResult.metrics.aht % 60
+                    )
+                      .toString()
+                      .padStart(2, "0")}`
+                  : "—"}
               </div>
               <div className="text-xs sm:text-sm text-purple-600 font-medium">
                 AHT
@@ -989,7 +1185,9 @@ export default function ChatDemo(): JSX.Element {
 
             <div className="text-center p-3 sm:p-4 rounded-lg bg-orange-50 border border-orange-200 min-w-[100px] sm:min-w-[120px]">
               <div className="text-lg sm:text-2xl font-bold text-orange-700 mb-1 sm:mb-2">
-                {analysisResult.metrics.responseTime}s
+                {analysisResult?.metrics
+                  ? `${analysisResult.metrics.responseTime}s`
+                  : "—"}
               </div>
               <div className="text-xs sm:text-sm text-orange-600 font-medium">
                 Response
@@ -1001,7 +1199,9 @@ export default function ChatDemo(): JSX.Element {
 
             <div className="text-center p-3 sm:p-4 rounded-lg bg-red-50 border border-red-200 min-w-[100px] sm:min-w-[120px]">
               <div className="text-lg sm:text-2xl font-bold text-red-700 mb-1 sm:mb-2">
-                {analysisResult.metrics.transfers}
+                {analysisResult?.metrics
+                  ? `${analysisResult.metrics.transfers}`
+                  : "—"}
               </div>
               <div className="text-xs sm:text-sm text-red-600 font-medium">
                 Transfers
@@ -1013,7 +1213,9 @@ export default function ChatDemo(): JSX.Element {
 
             <div className="text-center p-3 sm:p-4 rounded-lg bg-indigo-50 border border-indigo-200 min-w-[100px] sm:min-w-[120px]">
               <div className="text-lg sm:text-2xl font-bold text-indigo-700 mb-1 sm:mb-2">
-                {Math.round(analysisResult.metrics.sentimentScore * 100)}%
+                {analysisResult?.metrics
+                  ? `${Math.round(analysisResult.metrics.sentimentScore * 100)}%`
+                  : "—"}
               </div>
               <div className="text-xs sm:text-sm text-indigo-600 font-medium">
                 Sentiment
@@ -1025,7 +1227,9 @@ export default function ChatDemo(): JSX.Element {
 
             <div className="text-center p-3 sm:p-4 rounded-lg bg-teal-50 border border-teal-200 min-w-[100px] sm:min-w-[120px]">
               <div className="text-lg sm:text-2xl font-bold text-teal-700 mb-1 sm:mb-2">
-                {analysisResult.metrics.compliance}%
+                {analysisResult?.metrics
+                  ? `${analysisResult.metrics.compliance}%`
+                  : "—"}
               </div>
               <div className="text-xs sm:text-sm text-teal-600 font-medium">
                 Compliance

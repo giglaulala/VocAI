@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getOpenAIClient } from "@/lib/openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,49 +11,34 @@ export async function POST(req: Request) {
     if (!transcript || typeof transcript !== "string") {
       return NextResponse.json(
         { error: "Transcript is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { error: "OPENAI_API_KEY is not set on the server" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You return ONLY strict JSON that validates. Do not paraphrase or add words. Use transcript text verbatim and only split it into turns.",
-          },
-          { role: "user", content: buildPrompt(transcript, language) },
-        ],
-        temperature: 0,
-        max_tokens: 1200,
-        response_format: { type: "json_object" },
-      }),
+    const openai = getOpenAIClient();
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You return ONLY strict JSON that validates. Do not paraphrase or add words. Use transcript text verbatim and only split it into turns.",
+        },
+        { role: "user", content: buildPrompt(transcript, language) },
+      ],
+      temperature: 0,
+      max_tokens: 1200,
+      response_format: { type: "json_object" },
     });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      return NextResponse.json(
-        { error: "OpenAI API request failed", details: errorText },
-        { status: 502 }
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    const content = completion.choices?.[0]?.message?.content || "";
 
     let parsed;
     try {
@@ -65,7 +51,7 @@ export async function POST(req: Request) {
       } else {
         return NextResponse.json(
           { error: "Invalid JSON from AI" },
-          { status: 502 }
+          { status: 502 },
         );
       }
     }
@@ -85,18 +71,18 @@ export async function POST(req: Request) {
         speakers,
         totalSpeakers: Math.max(
           ...speakers.map(
-            (s: any) => parseInt(String(s.speaker).replace(/[^0-9]/g, "")) || 1
+            (s: any) => parseInt(String(s.speaker).replace(/[^0-9]/g, "")) || 1,
           ),
-          1
+          1,
         ),
         provider: "ai-diarization",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || "AI diarization failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { toFile } from "openai/uploads";
+import { getOpenAIClient } from "@/lib/openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,33 +21,27 @@ export async function POST(req: Request) {
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { error: "OPENAI_API_KEY is not set on the server" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    const apiForm = new FormData();
-    apiForm.append("file", file, (file as any).name || "audio");
-    apiForm.append("model", model);
-    if (language) apiForm.append("language", language);
+    const openai = getOpenAIClient();
+    const openaiFile = await toFile(file, (file as any).name || "audio");
 
-    const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: apiForm,
-    });
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
+    let text = "";
+    try {
+      const transcription = await openai.audio.transcriptions.create({
+        file: openaiFile,
+        model,
+        language,
+      });
+      text = (transcription as any)?.text || "";
+    } catch (e: any) {
       return NextResponse.json(
-        { error: "Whisper request failed", details: errText },
-        { status: 502 }
+        { error: "Whisper request failed", details: e?.message || String(e) },
+        { status: 502 },
       );
     }
-
-    const data = await res.json();
-    const text: string = data?.text || "";
 
     // If we have a transcript, analyze it with AI
     if (text.trim()) {
@@ -59,7 +55,7 @@ export async function POST(req: Request) {
               transcript: text,
               language: language || "en",
             }),
-          }
+          },
         );
 
         if (analysisRes.ok) {
@@ -79,7 +75,7 @@ export async function POST(req: Request) {
                 provider: "openai-whisper",
               },
             },
-            { status: 200 }
+            { status: 200 },
           );
         }
       } catch (analysisError) {
@@ -91,7 +87,7 @@ export async function POST(req: Request) {
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || "Transcription error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

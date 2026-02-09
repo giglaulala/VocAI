@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getOpenAIClient } from "@/lib/openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,59 +11,45 @@ export async function POST(req: Request) {
     if (!transcript || typeof transcript !== "string") {
       return NextResponse.json(
         { error: "Transcript is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { error: "OPENAI_API_KEY is not set on the server" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Create analysis prompt based on language (generic, works for any domain)
     const analysisPrompt = createAnalysisPrompt(transcript, language);
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert business analyst who extracts key insights from conversation transcripts. Always respond with valid JSON only.",
-          },
-          {
-            role: "user",
-            content: analysisPrompt,
-          },
-        ],
-        temperature: 0,
-        max_tokens: 1000,
-      }),
+    const openai = getOpenAIClient();
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert business analyst who extracts key insights from conversation transcripts. Always respond with valid JSON only.",
+        },
+        {
+          role: "user",
+          content: analysisPrompt,
+        },
+      ],
+      temperature: 0,
+      max_tokens: 1000,
+      response_format: { type: "json_object" },
     });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      return NextResponse.json(
-        { error: "OpenAI API request failed", details: errorText },
-        { status: 502 }
-      );
-    }
-
-    const data = await response.json();
-    const analysisText = data.choices?.[0]?.message?.content;
+    const analysisText = completion.choices?.[0]?.message?.content;
 
     if (!analysisText) {
       return NextResponse.json(
         { error: "No analysis generated" },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -95,7 +82,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || "Analysis failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -226,8 +213,8 @@ function extractActionItemsHeuristic(text: string, min = 2, max = 4): string[] {
     .filter(Boolean);
   const candidates = sentences.filter((s) =>
     /\b(will|please|can you|could you|let's|let us|i'll|we'll|send|email|share|follow up|schedule|call|order|deliver|confirm)\b/i.test(
-      s
-    )
+      s,
+    ),
   );
   const trimmed = candidates
     .map((s) => s.replace(/^[-•\s]+/, ""))
