@@ -42,12 +42,16 @@ type AnalysisResult = {
 
 export default function ChatDemo(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
-  const [useFallback, setUseFallback] = useState(true);
+  const [dataSource, setDataSource] = useState<"demo" | "stt" | "json">("demo");
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
-    null
+    null,
   );
   const [selectedThreadId, setSelectedThreadId] = useState<string>("t1");
   const [language, setLanguage] = useState<string>("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [lastUploadKind, setLastUploadKind] = useState<
+    "audio" | "json" | "unknown" | null
+  >(null);
 
   const fakeThreads = [
     {
@@ -88,7 +92,7 @@ export default function ChatDemo(): JSX.Element {
       if (analysisResult?.provider === "ai-diarization") return turns;
       const total = turns.length;
       const zeroTsCount = turns.filter(
-        (t) => !t.timestamp || t.timestamp === "00:00" || t.timestamp === "—"
+        (t) => !t.timestamp || t.timestamp === "00:00" || t.timestamp === "—",
       ).length;
       const shortMsgCount = turns.filter((t) => {
         const wc = (t.message || "").trim().split(/\s+/).filter(Boolean).length;
@@ -113,6 +117,8 @@ export default function ChatDemo(): JSX.Element {
   }, [analysisResult]);
 
   const generateDemo = async () => {
+    setUploadError(null);
+    setLastUploadKind(null);
     setIsLoading(true);
     try {
       const res = await fetch("/api/demo-fallback", {
@@ -121,7 +127,7 @@ export default function ChatDemo(): JSX.Element {
         headers: { "content-type": "application/json" },
       });
       const data = await res.json();
-      setUseFallback(true);
+      setDataSource("demo");
       setAnalysisResult(data.analysis as AnalysisResult);
     } catch (e) {
     } finally {
@@ -129,7 +135,156 @@ export default function ChatDemo(): JSX.Element {
     }
   };
 
-  const uploadFile = async (file: File) => {
+  const detectSelectedFileKind = (file: File): "audio" | "json" | "unknown" => {
+    const name = (file.name || "").toLowerCase();
+    const ext = name.includes(".") ? name.split(".").pop() || "" : "";
+    const type = (file.type || "").toLowerCase();
+
+    if (ext === "json" || type === "application/json") return "json";
+    if (
+      type.startsWith("audio/") ||
+      ["mp3", "wav", "m4a", "ogg", "mpeg"].includes(ext)
+    )
+      return "audio";
+    return "unknown";
+  };
+
+  const normalizeJsonMessagesToConversation = (
+    rawMessages: unknown,
+  ): ConversationTurn[] => {
+    if (!Array.isArray(rawMessages)) return [];
+
+    const turns: ConversationTurn[] = [];
+    for (const m of rawMessages) {
+      if (!m || typeof m !== "object") continue;
+      const msg = m as Record<string, any>;
+
+      const content =
+        msg.message ??
+        msg.content ??
+        msg.text ??
+        msg.body ??
+        msg.value ??
+        msg.data?.content;
+      if (typeof content !== "string" || content.trim().length === 0) continue;
+
+      const role =
+        msg.speaker ??
+        msg.role ??
+        msg.author ??
+        msg.sender ??
+        msg.from ??
+        msg.user ??
+        msg.type;
+
+      let speaker = "Speaker";
+      if (typeof role === "string" && role.trim().length > 0) {
+        const r = role.toLowerCase();
+        if (r === "assistant" || r === "agent" || r === "support") {
+          speaker = "Agent";
+        } else if (r === "user" || r === "customer" || r === "client") {
+          speaker = "Customer";
+        } else {
+          speaker = role;
+        }
+      }
+
+      const ts =
+        msg.timestamp ??
+        msg.time ??
+        msg.createdAt ??
+        msg.created_at ??
+        msg.date ??
+        msg.datetime;
+      const timestamp =
+        typeof ts === "string" && ts.trim().length > 0 ? ts : "—";
+
+      turns.push({ speaker, message: content.trim(), timestamp });
+    }
+
+    return turns;
+  };
+
+  const uploadJsonFile = async (file: File) => {
+    setIsLoading(true);
+    setUploadError(null);
+    try {
+      const text = await file.text();
+      let parsed: any;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid JSON. Please upload a valid .json file.");
+      }
+
+      const rawMessages = Array.isArray(parsed)
+        ? parsed
+        : (parsed?.messages ?? parsed?.data?.messages);
+
+      if (!Array.isArray(rawMessages)) {
+        throw new Error(
+          "Invalid JSON structure. Expected a top-level `messages` array.",
+        );
+      }
+
+      const conversation = normalizeJsonMessagesToConversation(rawMessages);
+      if (conversation.length === 0) {
+        throw new Error(
+          "No usable messages found. Expected `messages` items with a `content`/`message` string.",
+        );
+      }
+
+      const transcript = conversation
+        .map((t) => `${t.speaker}: ${t.message}`)
+        .join("\n");
+
+      // Set base analysis immediately so the UI updates quickly.
+      setDataSource("json");
+      setAnalysisResult({
+        transcript,
+        conversation,
+        provider: "json-upload",
+        language: language || "en",
+      });
+
+      // Fetch insights (sentiment, topics, action items) for the transcript.
+      try {
+        const insightsRes = await fetch("/api/analyze-text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transcript,
+            language: language || "en",
+          }),
+        });
+        if (insightsRes.ok) {
+          const insights = await insightsRes.json();
+          setAnalysisResult((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  sentiment: insights.analysis?.sentiment || prev.sentiment,
+                  topics: insights.analysis?.topics || prev.topics,
+                  actionItems:
+                    insights.analysis?.actionItems || prev.actionItems,
+                }
+              : prev,
+          );
+        }
+      } catch {}
+    } catch (e: any) {
+      const msg =
+        typeof e?.message === "string" && e.message.trim().length > 0
+          ? e.message
+          : "Failed to read JSON file.";
+      setUploadError(msg);
+      setAnalysisResult(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const uploadAudioFile = async (file: File) => {
     setIsLoading(true);
     try {
       const form = new FormData();
@@ -156,7 +311,7 @@ export default function ChatDemo(): JSX.Element {
           "🎯 Selected endpoint for language",
           language,
           ":",
-          endpoint
+          endpoint,
         );
         res = await fetch(endpoint, {
           method: "POST",
@@ -166,7 +321,7 @@ export default function ChatDemo(): JSX.Element {
         console.log(
           "📡 [uploadFile] Primary response:",
           res.status,
-          res.statusText
+          res.statusText,
         );
       } catch (e) {
         res = new Response(null, { status: 599 });
@@ -186,7 +341,7 @@ export default function ChatDemo(): JSX.Element {
           if (language)
             whisperForm.append(
               "language",
-              language === "hybrid" ? "en" : language
+              language === "hybrid" ? "en" : language,
             );
           const whisperRes = await fetch("/api/whisper", {
             method: "POST",
@@ -196,7 +351,7 @@ export default function ChatDemo(): JSX.Element {
           console.log(
             "📡 [uploadFile] Whisper fallback response:",
             whisperRes.status,
-            whisperRes.statusText
+            whisperRes.statusText,
           );
           if (whisperRes.ok) {
             const whisperData = await whisperRes.json();
@@ -226,7 +381,7 @@ export default function ChatDemo(): JSX.Element {
               } catch {}
             }
             if (analysis.transcript && analysis.transcript.trim().length > 0) {
-              setUseFallback(false);
+              setDataSource("stt");
               setAnalysisResult(analysis);
               return;
             }
@@ -239,7 +394,7 @@ export default function ChatDemo(): JSX.Element {
           body: form,
         });
         const fbData = await fb.json();
-        setUseFallback(true);
+        setDataSource("demo");
         setAnalysisResult(fbData.analysis as AnalysisResult);
         return;
       }
@@ -248,7 +403,7 @@ export default function ChatDemo(): JSX.Element {
       const data = await res.json();
       console.log(
         "🧪 [uploadFile] Primary JSON keys:",
-        Object.keys(data || {})
+        Object.keys(data || {}),
       );
       // Normalize to our AnalysisResult shape
       let analysis: AnalysisResult = {};
@@ -307,7 +462,7 @@ export default function ChatDemo(): JSX.Element {
           if (language)
             whisperForm.append(
               "language",
-              language === "hybrid" ? "en" : language
+              language === "hybrid" ? "en" : language,
             );
           const whisperRes = await fetch("/api/whisper", {
             method: "POST",
@@ -341,7 +496,7 @@ export default function ChatDemo(): JSX.Element {
               } catch {}
             }
             if (enriched.transcript && enriched.transcript.trim().length > 0) {
-              setUseFallback(false);
+              setDataSource("stt");
               setAnalysisResult(enriched);
               return;
             }
@@ -353,11 +508,11 @@ export default function ChatDemo(): JSX.Element {
           body: form,
         });
         const fbData = await fb.json();
-        setUseFallback(true);
+        setDataSource("demo");
         setAnalysisResult(fbData.analysis as AnalysisResult);
         return;
       }
-      setUseFallback(false);
+      setDataSource("stt");
       if (
         analysis?.provider === "ai-diarization" ||
         (analysis?.provider || "").includes("hybrid-whisper-ai")
@@ -404,7 +559,7 @@ export default function ChatDemo(): JSX.Element {
                       conversation: aiPostData.speakers,
                       provider: "ai-diarization",
                     }
-                  : prev
+                  : prev,
               );
 
               // After conversation is set, fetch insights (sentiment, topics, action items)
@@ -430,7 +585,7 @@ export default function ChatDemo(): JSX.Element {
                           actionItems:
                             insights.analysis?.actionItems || prev.actionItems,
                         }
-                      : prev
+                      : prev,
                   );
                 }
               } catch {}
@@ -447,12 +602,25 @@ export default function ChatDemo(): JSX.Element {
           body: form,
         });
         const fbData = await fb.json();
-        setUseFallback(true);
+        setDataSource("demo");
         setAnalysisResult(fbData.analysis as AnalysisResult);
       } catch {}
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const uploadFile = async (file: File) => {
+    setUploadError(null);
+    const kind = detectSelectedFileKind(file);
+    setLastUploadKind(kind);
+
+    if (kind === "json") return uploadJsonFile(file);
+    if (kind === "audio") return uploadAudioFile(file);
+
+    setUploadError(
+      "Unsupported file type. Please upload an audio file (.mp3, .wav, .m4a, .ogg) or a .json file containing a `messages` array.",
+    );
   };
 
   return (
@@ -553,9 +721,13 @@ export default function ChatDemo(): JSX.Element {
                 >
                   Bind your API
                 </a>
-                {useFallback ? (
+                {dataSource === "demo" ? (
                   <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-2 py-1">
                     Demo mode
+                  </span>
+                ) : dataSource === "json" ? (
+                  <span className="text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded-md px-2 py-1">
+                    JSON upload
                   </span>
                 ) : (
                   <span className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-2 py-1">
@@ -566,11 +738,22 @@ export default function ChatDemo(): JSX.Element {
             </div>
 
             <div className="h-[300px] sm:h-[400px] lg:h-[520px] overflow-y-auto p-3 sm:p-4 space-y-3 bg-neutral-50">
+              {uploadError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  {uploadError}
+                </div>
+              )}
               {isLoading ? (
                 <div className="flex items-center justify-center h-full text-neutral-500">
                   <div className="flex items-center gap-2 text-sm">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Processing audio and formatting dialogue…</span>
+                    <span>
+                      {lastUploadKind === "json"
+                        ? "Parsing JSON and building dialogue…"
+                        : lastUploadKind === "audio"
+                          ? "Processing audio and formatting dialogue…"
+                          : "Working…"}
+                    </span>
                   </div>
                 </div>
               ) : messages.length === 0 ? (
@@ -578,7 +761,8 @@ export default function ChatDemo(): JSX.Element {
                   <div className="text-center">
                     <Sparkles className="w-10 h-10 mx-auto mb-2 text-neutral-300" />
                     <p>
-                      Upload an audio file or generate a sample to get started.
+                      Upload an audio or JSON file, or generate a sample to get
+                      started.
                     </p>
                   </div>
                 </div>
@@ -647,18 +831,23 @@ export default function ChatDemo(): JSX.Element {
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-neutral-200 hover:bg-neutral-50 cursor-pointer">
+                <label
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-neutral-200 hover:bg-neutral-50 cursor-pointer"
+                  title="Upload an audio (.mp3, .wav, .m4a, .ogg) or JSON (.json) file"
+                >
                   <Upload className="w-4 h-4 text-primary-600" />
                   <span className="text-sm font-medium text-neutral-800">
-                    Upload audio
+                    Upload File
                   </span>
                   <input
                     type="file"
-                    accept="audio/mpeg,audio/mp3,audio/wav"
+                    accept=".mp3,.wav,.m4a,.ogg,.json,audio/*,application/json"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) uploadFile(file);
+                      // Allow re-selecting the same file.
+                      e.currentTarget.value = "";
                     }}
                   />
                 </label>
@@ -717,7 +906,7 @@ export default function ChatDemo(): JSX.Element {
                   {analysisResult?.duration
                     ? (() => {
                         const totalSeconds = Math.floor(
-                          analysisResult?.duration || 0
+                          analysisResult?.duration || 0,
                         );
                         const minutes = Math.floor(totalSeconds / 60);
                         const seconds = (totalSeconds % 60)
