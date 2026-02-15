@@ -66,7 +66,17 @@ The design incorporates a carefully chosen color scheme that reflects the core c
    yarn install
    ```
 
-3. **Run the development server**
+3. **Configure environment variables**
+
+   Copy the template and fill in your keys:
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   For Supabase, make sure `NEXT_PUBLIC_SUPABASE_URL` is the **API URL** (format: `https://<project-ref>.supabase.co`), not a dashboard URL.
+
+4. **Run the development server**
 
    ```bash
    npm run dev
@@ -74,7 +84,7 @@ The design incorporates a carefully chosen color scheme that reflects the core c
    yarn dev
    ```
 
-4. **Open your browser**
+5. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
 ### Build for Production

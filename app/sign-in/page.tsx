@@ -2,22 +2,32 @@
 
 import Link from "next/link";
 import Header from "@/components/Header";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export default function SignInPage(): JSX.Element {
   const router = useRouter();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
     try {
-      // Placeholder auth submit
-      await new Promise((r) => setTimeout(r, 800));
-      router.push("/demo");
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      router.push("/messages");
     } finally {
       setIsLoading(false);
     }
@@ -59,6 +69,11 @@ export default function SignInPage(): JSX.Element {
                 placeholder="••••••••"
               />
             </div>
+            {error ? (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {error}
+              </div>
+            ) : null}
             <button
               type="submit"
               disabled={isLoading}
