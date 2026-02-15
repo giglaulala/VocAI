@@ -12,14 +12,14 @@ import { requireUser } from "@/lib/auth/requireUser";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SCOPES = [
-  "pages_messaging",
-  "pages_manage_metadata",
-  "pages_read_engagement",
-  "pages_show_list",
-  "instagram_basic",
-  "instagram_manage_messages",
-].join(",");
+// Meta may show "Invalid Scopes" for some permissions depending on your app setup,
+// login product type (Facebook Login vs Facebook Login for Business), and access level.
+// Keep a minimal default to avoid blocking the OAuth screen; you can override via env.
+const DEFAULT_SCOPES = ["pages_messaging", "pages_manage_metadata", "pages_show_list"].join(",");
+
+function getScopes(): string {
+  return (process.env.FACEBOOK_OAUTH_SCOPES || DEFAULT_SCOPES).trim();
+}
 
 export async function GET(req: Request) {
   try {
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     url.searchParams.set("client_id", getFacebookAppId());
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("state", state);
-    url.searchParams.set("scope", SCOPES);
+    url.searchParams.set("scope", getScopes());
     url.searchParams.set("response_type", "code");
 
     const acceptsJson = (req.headers.get("accept") || "").includes("application/json");
