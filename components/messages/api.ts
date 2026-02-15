@@ -13,8 +13,8 @@ export async function apiFetchJson<T>(
     method: opts.method || "GET",
     headers: {
       authorization: `Bearer ${opts.token}`,
-      ...(opts.acceptJson ? { accept: "application/json" } : null),
-      ...(opts.body ? { "content-type": "application/json" } : null),
+      ...(opts.acceptJson ? { accept: "application/json" } : {}),
+      ...(opts.body ? { "content-type": "application/json" } : {}),
     },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
@@ -23,10 +23,11 @@ export async function apiFetchJson<T>(
   const json = text ? safeJsonParse(text) : null;
 
   if (!res.ok) {
-    const msg =
-      (json && typeof (json as any).error === "string" && (json as ApiError).error) ||
-      text ||
-      `Request failed (${res.status})`;
+    const apiError =
+      json && typeof json === "object" && "error" in (json as any) && typeof (json as any).error === "string"
+        ? ((json as ApiError).error as string)
+        : null;
+    const msg = String(apiError || text || `Request failed (${res.status})`);
     const err = new Error(msg) as Error & { status?: number };
     err.status = res.status;
     throw err;
