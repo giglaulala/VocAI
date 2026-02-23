@@ -155,8 +155,8 @@ export async function GET(req: Request) {
       }
     }
 
-    // Redirect to a simple success page (or return JSON if you prefer).
-    return NextResponse.json({ ok: true, connected }, { status: 200 });
+    // Navigate to Messages after successful connection.
+    return NextResponse.redirect(new URL("/messages", req.url));
   } catch (err: any) {
     const http = asHttpError(err);
     return NextResponse.json(

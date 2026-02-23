@@ -51,9 +51,13 @@ export function ConversationsList({
 
       <div className="max-h-[65vh] overflow-auto">
         {loading ? (
-          <div className="p-4 text-sm text-neutral-600">Loading conversations...</div>
+          <div className="p-4 text-sm text-neutral-600">
+            Loading conversations...
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="p-4 text-sm text-neutral-600">No conversations found.</div>
+          <div className="p-4 text-sm text-neutral-600">
+            No conversations found.
+          </div>
         ) : (
           <ul className="divide-y divide-neutral-100">
             {filtered.map((c) => {
@@ -77,7 +81,9 @@ export function ConversationsList({
                           <PlatformBadge platform={c.platform} />
                         </div>
                         <div className="text-xs text-neutral-500 truncate">
-                          {preview ? preview : c.connected_pages?.page_name || c.page_id}
+                          {preview
+                            ? preview
+                            : c.connected_pages?.page_name || c.page_id}
                         </div>
                       </div>
                       <div className="text-xs text-neutral-500 whitespace-nowrap">
@@ -94,4 +100,3 @@ export function ConversationsList({
     </div>
   );
 }
-

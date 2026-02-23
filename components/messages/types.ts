@@ -44,4 +44,3 @@ export type ConversationMessagesResponse = {
 };
 export type SendMessageResponse = { ok: true; messageId: string };
 export type OAuthConnectResponse = { url: string };
-

@@ -15,7 +15,10 @@ export async function GET(
     const user = await requireUser(req);
     const conversationId = params.conversationId;
     if (!conversationId) {
-      return NextResponse.json({ error: "Missing conversationId" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing conversationId" },
+        { status: 400 },
+      );
     }
 
     const supabaseAdmin = getSupabaseAdminClient();
@@ -36,7 +39,9 @@ export async function GET(
 
     const { data: messages, error } = await supabaseAdmin
       .from("messages")
-      .select("id,message_id,sender_id,text,platform,is_from_customer,timestamp,created_at")
+      .select(
+        "id,message_id,sender_id,text,platform,is_from_customer,timestamp,created_at",
+      )
       .eq("conversation_id", conv.id)
       .order("timestamp", { ascending: true });
 
@@ -44,7 +49,10 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 502 });
     }
 
-    return NextResponse.json({ conversation: conv, messages: messages || [] }, { status: 200 });
+    return NextResponse.json(
+      { conversation: conv, messages: messages || [] },
+      { status: 200 },
+    );
   } catch (err: any) {
     const http = asHttpError(err);
     return NextResponse.json(
@@ -53,4 +61,3 @@ export async function GET(
     );
   }
 }
-

@@ -81,7 +81,9 @@ export function ChatWindow({
             return (
               <div
                 key={m.message_id || m.id}
-                className={"flex " + (isCustomer ? "justify-start" : "justify-end")}
+                className={
+                  "flex " + (isCustomer ? "justify-start" : "justify-end")
+                }
               >
                 <div
                   className={
@@ -92,11 +94,16 @@ export function ChatWindow({
                   }
                 >
                   <div className="text-sm whitespace-pre-wrap break-words">
-                    {m.text ? <LinkifiedText text={m.text} /> : <span>(no text)</span>}
+                    {m.text ? (
+                      <LinkifiedText text={m.text} />
+                    ) : (
+                      <span>(no text)</span>
+                    )}
                   </div>
                   <div
                     className={
-                      "mt-1 text-[11px] " + (isCustomer ? "text-neutral-500" : "text-white/80")
+                      "mt-1 text-[11px] " +
+                      (isCustomer ? "text-neutral-500" : "text-white/80")
                     }
                   >
                     {formatTime(m.timestamp || m.created_at)}
@@ -140,4 +147,3 @@ export function ChatWindow({
     </div>
   );
 }
-
