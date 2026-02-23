@@ -21,6 +21,11 @@ function getScopes(): string {
   return (process.env.FACEBOOK_OAUTH_SCOPES || DEFAULT_SCOPES).trim();
 }
 
+function getFacebookLoginConfigId(): string | null {
+  const v = (process.env.FACEBOOK_LOGIN_CONFIG_ID || "").trim();
+  return v || null;
+}
+
 export async function GET(req: Request) {
   try {
     const user = await requireUser(req);
@@ -33,8 +38,16 @@ export async function GET(req: Request) {
     url.searchParams.set("client_id", getFacebookAppId());
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("state", state);
-    url.searchParams.set("scope", getScopes());
     url.searchParams.set("response_type", "code");
+
+    // If you're using Facebook Login for Business, prefer a configuration.
+    // This avoids "Invalid Scopes" and allows selecting business assets (Pages/IG accounts).
+    const configId = getFacebookLoginConfigId();
+    if (configId) {
+      url.searchParams.set("config_id", configId);
+    } else {
+      url.searchParams.set("scope", getScopes());
+    }
 
     const acceptsJson = (req.headers.get("accept") || "").includes("application/json");
     if (acceptsJson) {

@@ -7,7 +7,10 @@ import {
 } from "@/lib/facebook/config";
 import { verifySignedOAuthState } from "@/lib/facebook/crypto";
 import { graphGet, graphPost } from "@/lib/facebook/graph";
-import type { GraphMeAccountsResponse, GraphOAuthTokenResponse } from "@/lib/facebook/types";
+import type {
+  GraphMeAccountsResponse,
+  GraphOAuthTokenResponse,
+} from "@/lib/facebook/types";
 import { asHttpError } from "@/lib/http/httpError";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -40,24 +43,33 @@ export async function GET(req: Request) {
 
     const [userId] = verified.payload.split(":");
     if (!userId) {
-      return NextResponse.json({ error: "Invalid state payload" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid state payload" },
+        { status: 400 },
+      );
     }
 
     // Exchange code for short-lived token.
-    const short = await graphGet<GraphOAuthTokenResponse>("/oauth/access_token", {
-      client_id: getFacebookAppId(),
-      client_secret: getFacebookAppSecret(),
-      redirect_uri: getFacebookOAuthRedirectUri(),
-      code,
-    });
+    const short = await graphGet<GraphOAuthTokenResponse>(
+      "/oauth/access_token",
+      {
+        client_id: getFacebookAppId(),
+        client_secret: getFacebookAppSecret(),
+        redirect_uri: getFacebookOAuthRedirectUri(),
+        code,
+      },
+    );
 
     // Exchange for long-lived token.
-    const long = await graphGet<GraphOAuthTokenResponse>("/oauth/access_token", {
-      grant_type: "fb_exchange_token",
-      client_id: getFacebookAppId(),
-      client_secret: getFacebookAppSecret(),
-      fb_exchange_token: short.access_token,
-    });
+    const long = await graphGet<GraphOAuthTokenResponse>(
+      "/oauth/access_token",
+      {
+        grant_type: "fb_exchange_token",
+        client_id: getFacebookAppId(),
+        client_secret: getFacebookAppSecret(),
+        fb_exchange_token: short.access_token,
+      },
+    );
 
     const userAccessToken = long.access_token;
 
@@ -69,7 +81,11 @@ export async function GET(req: Request) {
 
     const supabaseAdmin = getSupabaseAdminClient();
 
-    const connected: Array<{ page_id: string; platform: string; page_name?: string }> = [];
+    const connected: Array<{
+      page_id: string;
+      platform: string;
+      page_name?: string;
+    }> = [];
 
     for (const p of accounts.data || []) {
       if (!p?.id || !p?.access_token) continue;
@@ -85,18 +101,37 @@ export async function GET(req: Request) {
         },
         { onConflict: "page_id" },
       );
-      connected.push({ page_id: p.id, platform: "facebook", page_name: p.name });
+      connected.push({
+        page_id: p.id,
+        platform: "facebook",
+        page_name: p.name,
+      });
 
-      // Subscribe the page to webhooks.
+      // After saving page to database...
+      //
+      // Subscribe to page webhooks
       try {
-        await graphPost("/" + p.id + "/subscribed_apps", {
-          access_token: p.access_token,
-          subscribed_fields:
-            "messages,messaging_postbacks,message_reads,message_deliveries,instagram_messages",
+        await fetch(`https://graph.facebook.com/v21.0/${p.id}/subscribed_apps`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            subscribed_fields:
+              "messages,messaging_postbacks,message_deliveries,message_reads",
+            access_token: p.access_token, // Use the page's access token
+          }),
         });
-      } catch (e) {
+
         // eslint-disable-next-line no-console
-        console.error("Failed to subscribe page to webhooks", p.id, e);
+        console.log(`✅ Subscribed to webhooks for page: ${p.name}`);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error(
+          `❌ Failed to subscribe to webhooks for ${p.name}:`,
+          error,
+        );
+        // Don't fail the whole flow - just log it
       }
 
       // Store Instagram Business Account (if present) using the same page token.
@@ -112,7 +147,11 @@ export async function GET(req: Request) {
           },
           { onConflict: "page_id" },
         );
-        connected.push({ page_id: ig.id, platform: "instagram", page_name: ig.username });
+        connected.push({
+          page_id: ig.id,
+          platform: "instagram",
+          page_name: ig.username,
+        });
       }
     }
 
@@ -126,4 +165,3 @@ export async function GET(req: Request) {
     );
   }
 }
-
