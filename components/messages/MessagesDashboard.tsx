@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "./EmptyState";
 import { ConnectionButton } from "./ConnectionButton";
 import { ConnectedPages, fetchConnectedPages } from "./ConnectedPages";
 import { ConversationsList } from "./ConversationsList";
 import { ChatWindow } from "./ChatWindow";
+import { AnalysisPanel, type ConversationAnalysis, type ConversationMetrics } from "./AnalysisPanel";
 import { apiFetchJson } from "./api";
 import type {
   ConnectedPage,
@@ -37,6 +38,14 @@ export function MessagesDashboard() {
 
   const [error, setError] = useState<string | null>(null);
   const [previews, setPreviews] = useState<Record<string, string>>({});
+
+  const [analysis, setAnalysis] = useState<ConversationAnalysis | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [metrics, setMetrics] = useState<ConversationMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+
+  // Track which conversation has already been analyzed so polling doesn't re-trigger.
+  const lastAnalyzedIdRef = useRef<string | null>(null);
 
   const selectedPage = useMemo(() => {
     if (!selectedConversation) return null;
@@ -80,8 +89,67 @@ export function MessagesDashboard() {
     }
   }
 
+  async function runAnalysis(msgs: Message[]) {
+    const textMessages = msgs.filter((m) => m.text);
+    if (textMessages.length === 0) return;
+
+    const transcript = textMessages
+      .map((m) => `${m.is_from_customer ? "Customer" : "Agent"}: ${m.text}`)
+      .join("\n");
+
+    // Run both calls concurrently.
+    setAnalysisLoading(true);
+    setMetricsLoading(true);
+    setAnalysis(null);
+    setMetrics(null);
+
+    const insightsPromise = fetch("/api/analyze-text", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript, language: "en" }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.analysis) setAnalysis(data.analysis);
+      })
+      .catch(() => {})
+      .finally(() => setAnalysisLoading(false));
+
+    const metricsPayload = textMessages.map((m) => ({
+      timestamp: m.timestamp || m.created_at,
+      sender: m.is_from_customer ? "customer" : "agent",
+      text: m.text || "",
+    }));
+
+    const metricsPromise = fetch("/api/support-metrics", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: metricsPayload }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.metrics) setMetrics(data.metrics);
+      })
+      .catch(() => {})
+      .finally(() => setMetricsLoading(false));
+
+    await Promise.all([insightsPromise, metricsPromise]);
+  }
+
   async function loadConversation(conversationId: string) {
     if (!token) return;
+
+    // Determine if this is a fresh selection (not a poll refresh).
+    const isNewSelection = conversationId !== lastAnalyzedIdRef.current;
+
+    if (isNewSelection) {
+      // Clear stale analysis immediately when switching conversations.
+      setAnalysis(null);
+      setMetrics(null);
+      setAnalysisLoading(false);
+      setMetricsLoading(false);
+    }
+
     setSelectedConversationId(conversationId);
     setMessagesLoading(true);
     setError(null);
@@ -91,13 +159,20 @@ export function MessagesDashboard() {
         { token, method: "GET" },
       );
       setSelectedConversation(res.conversation);
-      setMessages(res.messages || []);
-      const lastText = [...(res.messages || [])]
+      const msgs = res.messages || [];
+      setMessages(msgs);
+      const lastText = [...msgs]
         .reverse()
         .map((m) => (typeof m.text === "string" ? m.text.trim() : ""))
         .find((t) => t.length > 0);
       if (lastText) {
         setPreviews((p) => ({ ...p, [conversationId]: lastText.slice(0, 80) }));
+      }
+
+      // Run analysis only on first selection, not on every poll refresh.
+      if (isNewSelection && msgs.length > 0) {
+        lastAnalyzedIdRef.current = conversationId;
+        void runAnalysis(msgs);
       }
     } catch (e: any) {
       setError(e?.message || "Failed to load messages");
@@ -279,6 +354,13 @@ export function MessagesDashboard() {
           loading={messagesLoading}
           sending={sending}
           onSend={sendMessage}
+        />
+
+        <AnalysisPanel
+          analysis={analysis}
+          analysisLoading={analysisLoading}
+          metrics={metrics}
+          metricsLoading={metricsLoading}
         />
       </div>
     </div>
