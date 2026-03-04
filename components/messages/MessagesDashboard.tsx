@@ -72,10 +72,12 @@ export function MessagesDashboard() {
     }
   }
 
-  async function reloadConversations() {
+  async function reloadConversations({ silent = false }: { silent?: boolean } = {}) {
     if (!token) return;
-    setConversationsLoading(true);
-    setError(null);
+    if (!silent) {
+      setConversationsLoading(true);
+      setError(null);
+    }
     try {
       const res = await apiFetchJson<ConversationsResponse>("/api/messages/conversations", {
         token,
@@ -83,9 +85,9 @@ export function MessagesDashboard() {
       });
       setConversations(res.conversations || []);
     } catch (e: any) {
-      setError(e?.message || "Failed to load conversations");
+      if (!silent) setError(e?.message || "Failed to load conversations");
     } finally {
-      setConversationsLoading(false);
+      if (!silent) setConversationsLoading(false);
     }
   }
 
@@ -136,7 +138,7 @@ export function MessagesDashboard() {
     await Promise.all([insightsPromise, metricsPromise]);
   }
 
-  async function loadConversation(conversationId: string) {
+  async function loadConversation(conversationId: string, { silent = false }: { silent?: boolean } = {}) {
     if (!token) return;
 
     // Determine if this is a fresh selection (not a poll refresh).
@@ -150,9 +152,12 @@ export function MessagesDashboard() {
       setMetricsLoading(false);
     }
 
-    setSelectedConversationId(conversationId);
-    setMessagesLoading(true);
-    setError(null);
+    if (!silent) {
+      setSelectedConversationId(conversationId);
+      setMessagesLoading(true);
+      setError(null);
+    }
+
     try {
       const res = await apiFetchJson<ConversationMessagesResponse>(
         `/api/messages/${conversationId}`,
@@ -175,9 +180,9 @@ export function MessagesDashboard() {
         void runAnalysis(msgs);
       }
     } catch (e: any) {
-      setError(e?.message || "Failed to load messages");
+      if (!silent) setError(e?.message || "Failed to load messages");
     } finally {
-      setMessagesLoading(false);
+      if (!silent) setMessagesLoading(false);
     }
   }
 
@@ -213,7 +218,7 @@ export function MessagesDashboard() {
         ),
       );
       // Refresh conversations so ordering updates
-      void reloadConversations();
+      void reloadConversations({ silent: true });
     } catch (e: any) {
       // Rollback optimistic message
       setMessages((m) => m.filter((msg) => msg.message_id !== optimisticId));
@@ -234,7 +239,7 @@ export function MessagesDashboard() {
   useEffect(() => {
     if (!token) return;
     const id = window.setInterval(() => {
-      void reloadConversations();
+      void reloadConversations({ silent: true });
     }, 10_000);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,7 +248,7 @@ export function MessagesDashboard() {
   useEffect(() => {
     if (!token || !selectedConversationId) return;
     const id = window.setInterval(() => {
-      void loadConversation(selectedConversationId);
+      void loadConversation(selectedConversationId, { silent: true });
     }, 5_000);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
