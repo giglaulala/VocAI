@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const { data, error } = await supabaseAdmin
       .from("conversations")
       .select(
-        "id,user_id,page_id,sender_id,platform,last_message_at,created_at,connected_pages(page_name,platform)",
+        "id,user_id,page_id,sender_id,sender_name,platform,last_message_at,created_at,connected_pages(page_name,platform)",
       )
       .eq("user_id", user.id)
       .order("last_message_at", { ascending: false, nullsFirst: false });

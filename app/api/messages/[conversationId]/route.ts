@@ -25,7 +25,7 @@ export async function GET(
 
     const { data: conv, error: convErr } = await supabaseAdmin
       .from("conversations")
-      .select("id,user_id,page_id,sender_id,platform")
+      .select("id,user_id,page_id,sender_id,sender_name,platform")
       .eq("id", conversationId)
       .eq("user_id", user.id)
       .maybeSingle();

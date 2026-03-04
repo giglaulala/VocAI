@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getFacebookAppSecret, getFacebookWebhookVerifyToken } from "@/lib/facebook/config";
 import { verifyFacebookSignature256 } from "@/lib/facebook/crypto";
+import { graphGet } from "@/lib/facebook/graph";
 import type { FacebookWebhookPayload } from "@/lib/facebook/types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -83,7 +84,7 @@ async function handleWebhook(payload: FacebookWebhookPayload | null) {
       // Find owning user by connected page.
       const { data: page } = await supabaseAdmin
         .from("connected_pages")
-        .select("user_id,page_id,platform")
+        .select("user_id,page_id,platform,page_access_token")
         .eq("page_id", pageExternalId)
         .eq("platform", platform)
         .maybeSingle();
@@ -107,6 +108,26 @@ async function handleWebhook(payload: FacebookWebhookPayload | null) {
         .single();
 
       if (convErr || !conv?.id) continue;
+
+      // Fetch and store the customer's display name if this is an inbound message
+      // and we have a page access token. Silently fails in dev mode or if the API
+      // returns no name — the UI falls back to a short ID in those cases.
+      if (isFromCustomer && page?.page_access_token) {
+        try {
+          const profile = await graphGet<{ name?: string }>(`/${senderId}`, {
+            access_token: page.page_access_token,
+            fields: "name",
+          });
+          if (profile?.name) {
+            await supabaseAdmin
+              .from("conversations")
+              .update({ sender_name: profile.name })
+              .eq("id", conv.id);
+          }
+        } catch {
+          // Name lookup failed (e.g., app in dev mode) — keep going silently.
+        }
+      }
 
       // Store message (idempotent).
       await supabaseAdmin

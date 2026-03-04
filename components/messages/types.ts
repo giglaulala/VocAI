@@ -14,6 +14,7 @@ export type Conversation = {
   user_id: string;
   page_id: string;
   sender_id: string;
+  sender_name: string | null;
   platform: Platform;
   last_message_at: string | null;
   created_at: string;
@@ -39,7 +40,7 @@ export type ApiError = { error: string };
 export type PagesResponse = { pages: ConnectedPage[] };
 export type ConversationsResponse = { conversations: Conversation[] };
 export type ConversationMessagesResponse = {
-  conversation: Pick<Conversation, "id" | "page_id" | "sender_id" | "platform">;
+  conversation: Pick<Conversation, "id" | "page_id" | "sender_id" | "sender_name" | "platform">;
   messages: Message[];
 };
 export type SendMessageResponse = { ok: true; messageId: string };

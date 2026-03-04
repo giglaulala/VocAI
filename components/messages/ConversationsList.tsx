@@ -27,7 +27,9 @@ export function ConversationsList({
     if (!q) return conversations;
     return conversations.filter((c) => {
       const pageName = c.connected_pages?.page_name || "";
+      const displayName = c.sender_name || "";
       return (
+        displayName.toLowerCase().includes(q) ||
         c.sender_id.toLowerCase().includes(q) ||
         c.page_id.toLowerCase().includes(q) ||
         pageName.toLowerCase().includes(q)
@@ -76,7 +78,7 @@ export function ConversationsList({
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <div className="font-medium text-neutral-900 truncate">
-                            {c.sender_id}
+                            {c.sender_name ?? `User ···${c.sender_id.slice(-4)}`}
                           </div>
                           <PlatformBadge platform={c.platform} />
                         </div>

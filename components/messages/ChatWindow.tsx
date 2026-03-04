@@ -34,7 +34,7 @@ export function ChatWindow({
     if (!conversation) return null;
     return {
       pageName: page?.page_name || conversation.page_id,
-      customer: conversation.sender_id,
+      customer: conversation.sender_name ?? `User ···${conversation.sender_id.slice(-4)}`,
       platform: conversation.platform,
     };
   }, [conversation, page]);
