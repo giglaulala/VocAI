@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 
 import { EmptyState } from "./EmptyState";
 import { ConnectionButton } from "./ConnectionButton";
 import { ConnectedPages, fetchConnectedPages } from "./ConnectedPages";
+import { PageInboxCards } from "./PageInboxCards";
 import { ConversationsList } from "./ConversationsList";
 import { ChatWindow } from "./ChatWindow";
 import { AnalysisPanel, type ConversationAnalysis, type ConversationMetrics } from "./AnalysisPanel";
+import { PlatformBadge } from "./PlatformBadge";
 import { apiFetchJson } from "./api";
 import type {
   ConnectedPage,
@@ -24,6 +27,9 @@ export function MessagesDashboard() {
 
   const [pages, setPages] = useState<ConnectedPage[]>([]);
   const [pagesLoading, setPagesLoading] = useState(false);
+
+  // Which page inbox is currently open. null = show page selection cards.
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
@@ -57,6 +63,18 @@ export function MessagesDashboard() {
       ) || null
     );
   }, [pages, selectedConversation]);
+
+  // Conversations filtered to the currently open page inbox.
+  const filteredConversations = useMemo(() => {
+    if (!selectedPageId) return conversations;
+    return conversations.filter((c) => c.page_id === selectedPageId);
+  }, [conversations, selectedPageId]);
+
+  // The page object for the currently open inbox.
+  const activePage = useMemo(
+    () => pages.find((p) => p.page_id === selectedPageId) ?? null,
+    [pages, selectedPageId],
+  );
 
   async function reloadPages() {
     if (!token) return;
@@ -295,78 +313,130 @@ export function MessagesDashboard() {
     );
   }
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-primary-100 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-neutral-900">Connection</div>
-              <div className="text-xs text-neutral-500">
-                Auth token source: {source === "supabase" ? "Supabase session" : "Manual (dev)"}
-              </div>
-            </div>
-          </div>
-          <div className="mt-3">
-            <ConnectionButton token={token} onConnected={() => {}} />
-          </div>
+  // ── Screen 1: Page inbox selection ──────────────────────────────────────────
+  if (!selectedPageId) {
+    return (
+      <div className="space-y-8">
+        {/* Connection bar */}
+        <div className="flex justify-end">
+          <ConnectionButton token={token} onConnected={reloadPages} />
         </div>
 
-        <ConnectedPages token={token} pages={pages} onReload={reloadPages} />
-
-        {pagesLoading ? (
-          <div className="text-sm text-neutral-600">Loading pages…</div>
-        ) : pages.length === 0 ? (
-          <EmptyState
-            icon="connect"
-            title="No pages connected"
-            description="Connect a Facebook Page (and optional Instagram business account) to start receiving messages."
-          />
-        ) : null}
-
-        <ConversationsList
-          conversations={conversations}
-          getPreview={(c) => previews[c.id] || null}
-          selectedId={selectedConversationId}
-          onSelect={loadConversation}
-          loading={conversationsLoading}
-        />
-      </div>
-
-      <div className="space-y-3">
         {error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {error}
           </div>
         ) : null}
 
-        {conversations.length === 0 && !conversationsLoading ? (
+        {/* Page inbox cards */}
+        {pagesLoading ? (
+          <PageInboxCards pages={[]} conversations={[]} loading onSelect={() => {}} />
+        ) : pages.length === 0 ? (
           <EmptyState
-            icon="messages"
-            title="No conversations yet"
-            description="Once your webhook is configured and a customer messages your Page/IG account, conversations will appear here."
+            icon="connect"
+            title="No pages connected"
+            description="Connect a Facebook Page (and optional Instagram business account) to start receiving messages."
           />
-        ) : null}
+        ) : (
+          <div className="space-y-3">
+            <div className="text-base font-semibold text-neutral-700">Your inboxes</div>
+            <PageInboxCards
+              pages={pages}
+              conversations={conversations}
+              loading={conversationsLoading}
+              onSelect={(pageId) => {
+                setSelectedPageId(pageId);
+                setSelectedConversationId(null);
+                setSelectedConversation(null);
+                setMessages([]);
+              }}
+            />
+          </div>
+        )}
 
-        <ChatWindow
-          conversation={
-            selectedConversationId
-              ? (conversations.find((c) => c.id === selectedConversationId) || null)
-              : null
-          }
-          page={selectedPage}
-          messages={messages}
-          loading={messagesLoading}
-          sending={sending}
-          onSend={sendMessage}
+        {/* Page management (disconnect etc.) */}
+        {pages.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm font-semibold text-neutral-500 uppercase tracking-wide">
+              Manage pages
+            </div>
+            <ConnectedPages token={token} pages={pages} onReload={reloadPages} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Screen 2: Conversations for the selected page ────────────────────────────
+  return (
+    <div className="space-y-4">
+      {/* Header: back button + page name */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => {
+            setSelectedPageId(null);
+            setSelectedConversationId(null);
+            setSelectedConversation(null);
+            setMessages([]);
+          }}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          All inboxes
+        </button>
+        <span className="text-neutral-300">/</span>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-neutral-900">
+            {activePage?.page_name || selectedPageId}
+          </span>
+          {activePage && <PlatformBadge platform={activePage.platform} />}
+        </div>
+      </div>
+
+      {error ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
+        <ConversationsList
+          conversations={filteredConversations}
+          getPreview={(c) => previews[c.id] || null}
+          selectedId={selectedConversationId}
+          onSelect={loadConversation}
+          loading={conversationsLoading}
         />
 
-        <AnalysisPanel
-          analysis={analysis}
-          analysisLoading={analysisLoading}
-          metrics={metrics}
-          metricsLoading={metricsLoading}
-        />
+        <div className="space-y-3">
+          {filteredConversations.length === 0 && !conversationsLoading ? (
+            <EmptyState
+              icon="messages"
+              title="No conversations yet"
+              description="Once your webhook is configured and a customer messages your Page/IG account, conversations will appear here."
+            />
+          ) : null}
+
+          <ChatWindow
+            conversation={
+              selectedConversationId
+                ? (filteredConversations.find((c) => c.id === selectedConversationId) || null)
+                : null
+            }
+            page={selectedPage}
+            messages={messages}
+            loading={messagesLoading}
+            sending={sending}
+            onSend={sendMessage}
+          />
+
+          <AnalysisPanel
+            analysis={analysis}
+            analysisLoading={analysisLoading}
+            metrics={metrics}
+            metricsLoading={metricsLoading}
+          />
+        </div>
       </div>
     </div>
   );
