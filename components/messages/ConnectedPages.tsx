@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Unplug } from "lucide-react";
+import { Unplug, ChevronDown, ChevronUp, Users } from "lucide-react";
 
 import { apiFetchJson } from "./api";
 import type { ConnectedPage, PagesResponse } from "./types";
 import { PlatformBadge } from "./PlatformBadge";
+import { PageMembersPanel } from "./PageMembersPanel";
 
 export function ConnectedPages({
   token,
@@ -17,6 +18,7 @@ export function ConnectedPages({
   onReload: () => void;
 }) {
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [expandedPageId, setExpandedPageId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function disconnect(pageId: string) {
@@ -51,31 +53,62 @@ export function ConnectedPages({
         <div className="text-sm text-neutral-600">No pages connected yet.</div>
       ) : (
         <div className="space-y-2">
-          {pages.map((p) => (
-            <div
-              key={p.page_id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-neutral-200 px-3 py-2"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="font-medium text-neutral-900 truncate">
-                    {p.page_name || p.page_id}
-                  </div>
-                  <PlatformBadge platform={p.platform} />
-                </div>
-                <div className="text-xs text-neutral-500 truncate">{p.page_id}</div>
-              </div>
-
-              <button
-                onClick={() => disconnect(p.page_id)}
-                disabled={disconnecting === p.page_id}
-                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-60"
+          {pages.map((p) => {
+            const expanded = expandedPageId === p.page_id;
+            return (
+              <div
+                key={p.page_id}
+                className="rounded-xl border border-neutral-200 overflow-hidden"
               >
-                <Unplug className="w-4 h-4" />
-                {disconnecting === p.page_id ? "Disconnecting..." : "Disconnect"}
-              </button>
-            </div>
-          ))}
+                {/* Page row */}
+                <div className="flex items-center justify-between gap-3 px-3 py-2 bg-white">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-neutral-900 truncate">
+                        {p.page_name || p.page_id}
+                      </div>
+                      <PlatformBadge platform={p.platform} />
+                    </div>
+                    <div className="text-xs text-neutral-500 truncate">{p.page_id}</div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => setExpandedPageId(expanded ? null : p.page_id)}
+                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 transition-colors"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      Members
+                      {expanded ? (
+                        <ChevronUp className="w-3 h-3" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => disconnect(p.page_id)}
+                      disabled={disconnecting === p.page_id}
+                      className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-60 transition-colors"
+                    >
+                      <Unplug className="w-3.5 h-3.5" />
+                      {disconnecting === p.page_id ? "Disconnecting…" : "Disconnect"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expandable members panel */}
+                {expanded && (
+                  <div className="px-3 py-3 border-t border-neutral-100 bg-neutral-50">
+                    <PageMembersPanel
+                      pageId={p.page_id}
+                      token={token}
+                      isAdmin
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

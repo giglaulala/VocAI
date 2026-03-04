@@ -27,7 +27,6 @@ export async function GET(
       .from("conversations")
       .select("id,user_id,page_id,sender_id,sender_name,platform")
       .eq("id", conversationId)
-      .eq("user_id", user.id)
       .maybeSingle();
 
     if (convErr) {
@@ -37,10 +36,24 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    // Verify the requesting user is the owner or a page member.
+    if (conv.user_id !== user.id) {
+      const { data: membership } = await supabaseAdmin
+        .from("page_members")
+        .select("id")
+        .eq("page_id", conv.page_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!membership) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+    }
+
     const { data: messages, error } = await supabaseAdmin
       .from("messages")
       .select(
-        "id,message_id,sender_id,text,platform,is_from_customer,timestamp,created_at",
+        "id,message_id,sender_id,replied_by,text,platform,is_from_customer,timestamp,created_at",
       )
       .eq("conversation_id", conv.id)
       .order("timestamp", { ascending: true });

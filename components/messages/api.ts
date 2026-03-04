@@ -4,7 +4,7 @@ export async function apiFetchJson<T>(
   path: string,
   opts: {
     token: string;
-    method?: "GET" | "POST";
+    method?: "GET" | "POST" | "DELETE";
     body?: unknown;
     acceptJson?: boolean;
   },

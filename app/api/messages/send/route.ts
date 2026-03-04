@@ -5,6 +5,7 @@ import { asHttpError, HttpError } from "@/lib/http/httpError";
 import { graphPost } from "@/lib/facebook/graph";
 import type { GraphSendMessageResponse } from "@/lib/facebook/types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { recalcResponseTime } from "@/lib/messages/responseTime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,18 +31,31 @@ export async function POST(req: Request) {
       .from("conversations")
       .select("id,user_id,page_id,sender_id,platform")
       .eq("id", conversationId)
-      .eq("user_id", user.id)
       .maybeSingle();
 
     if (convErr) return NextResponse.json({ error: convErr.message }, { status: 502 });
     if (!conv) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    // Verify the sender is the page owner or a page member.
+    if (conv.user_id !== user.id) {
+      const { data: membership } = await supabaseAdmin
+        .from("page_members")
+        .select("id")
+        .eq("page_id", conv.page_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!membership) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+    }
+
+    // Fetch page access token (owned by whoever connected the page, not necessarily this user).
     const { data: page, error: pageErr } = await supabaseAdmin
       .from("connected_pages")
       .select("page_id,page_access_token,platform")
       .eq("page_id", conv.page_id)
       .eq("platform", conv.platform)
-      .eq("user_id", user.id)
       .maybeSingle();
 
     if (pageErr) return NextResponse.json({ error: pageErr.message }, { status: 502 });
@@ -68,11 +82,12 @@ export async function POST(req: Request) {
 
     const messageId = res.message_id || `${page.page_id}:${conv.sender_id}:${Date.now()}`;
 
-    // Store sent message.
+    // Store sent message with the employee who replied.
     await supabaseAdmin.from("messages").insert({
       conversation_id: conv.id,
       message_id: messageId,
       sender_id: page.page_id,
+      replied_by: user.id,
       text,
       platform,
       is_from_customer: false,
@@ -83,6 +98,9 @@ export async function POST(req: Request) {
       .from("conversations")
       .update({ last_message_at: new Date().toISOString() })
       .eq("id", conv.id);
+
+    // Recalculate response time metrics for this conversation.
+    void recalcResponseTime(supabaseAdmin, conv.id);
 
     return NextResponse.json({ ok: true, messageId }, { status: 200 });
   } catch (err: any) {

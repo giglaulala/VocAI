@@ -10,6 +10,7 @@ import { PageInboxCards } from "./PageInboxCards";
 import { ConversationsList } from "./ConversationsList";
 import { ChatWindow } from "./ChatWindow";
 import { AnalysisPanel, type ConversationAnalysis, type ConversationMetrics } from "./AnalysisPanel";
+import { TeamStatsPanel } from "./TeamStatsPanel";
 import { PlatformBadge } from "./PlatformBadge";
 import { apiFetchJson } from "./api";
 import type {
@@ -436,6 +437,8 @@ export function MessagesDashboard() {
             metrics={metrics}
             metricsLoading={metricsLoading}
           />
+
+          <TeamStatsPanel pageId={selectedPageId} token={token} />
         </div>
       </div>
     </div>

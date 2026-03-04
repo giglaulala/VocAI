@@ -101,6 +101,12 @@ export async function GET(req: Request) {
         },
         { onConflict: "page_id" },
       );
+
+      // Ensure page owner is an admin member.
+      await supabaseAdmin.from("page_members").upsert(
+        { page_id: p.id, user_id: userId, role: "admin" },
+        { onConflict: "page_id,user_id" },
+      );
       connected.push({
         page_id: p.id,
         platform: "facebook",
@@ -146,6 +152,12 @@ export async function GET(req: Request) {
             platform: "instagram",
           },
           { onConflict: "page_id" },
+        );
+
+        // Ensure page owner is an admin member for Instagram too.
+        await supabaseAdmin.from("page_members").upsert(
+          { page_id: ig.id, user_id: userId, role: "admin" },
+          { onConflict: "page_id,user_id" },
         );
         connected.push({
           page_id: ig.id,

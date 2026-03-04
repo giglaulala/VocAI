@@ -5,6 +5,7 @@ import { verifyFacebookSignature256 } from "@/lib/facebook/crypto";
 import { graphGet } from "@/lib/facebook/graph";
 import type { FacebookWebhookPayload } from "@/lib/facebook/types";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { recalcResponseTime } from "@/lib/messages/responseTime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -150,6 +151,11 @@ async function handleWebhook(payload: FacebookWebhookPayload | null) {
         .from("conversations")
         .update({ last_message_at: new Date(tsMs).toISOString() })
         .eq("id", conv.id);
+
+      // Recalculate response time metrics whenever an agent message arrives.
+      if (!isFromCustomer) {
+        void recalcResponseTime(supabaseAdmin, conv.id);
+      }
     }
   }
 }
