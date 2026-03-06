@@ -230,6 +230,7 @@ export function MessagesDashboard() {
       is_from_customer: false,
       timestamp: new Date().toISOString(),
       created_at: new Date().toISOString(),
+      replied_by: null,
     };
     setMessages((m) => [...m, optimistic]);
     setPreviews((p) => ({ ...p, [selectedConversationId]: text.slice(0, 80) }));
