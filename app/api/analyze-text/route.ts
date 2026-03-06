@@ -67,15 +67,22 @@ export async function POST(req: Request) {
       };
     }
 
-    // Heuristic enrichment: ensure topics/actionItems are present
+    // Heuristic fallbacks for required array fields.
     if (!Array.isArray(analysis.topics) || analysis.topics.length === 0) {
       analysis.topics = extractTopicsHeuristic(transcript, 3, 6);
     }
-    if (
-      !Array.isArray(analysis.actionItems) ||
-      analysis.actionItems.length === 0
-    ) {
+    if (!Array.isArray(analysis.actionItems) || analysis.actionItems.length === 0) {
       analysis.actionItems = extractActionItemsHeuristic(transcript, 2, 4);
+    }
+    if (!Array.isArray(analysis.keyIssues)) {
+      analysis.keyIssues = [];
+    }
+    // Normalise enum fields.
+    if (!["resolved", "unresolved", "pending"].includes(analysis.resolution)) {
+      analysis.resolution = "pending";
+    }
+    if (!["low", "medium", "high"].includes(analysis.urgency)) {
+      analysis.urgency = "medium";
     }
 
     return NextResponse.json({ analysis }, { status: 200 });
@@ -96,26 +103,40 @@ function createAnalysisPrompt(transcript: string, language: string): string {
       ka: "Georgian",
     }[language] || "English";
 
-  return `Analyze this ${languageContext} conversation transcript and extract general insights. Return ONLY a JSON object with this exact structure:
+  const outputLangInstruction =
+    language === "ka"
+      ? "IMPORTANT: Write all text values in the JSON (summary, intent, keyIssues, actionItems, agentPerformance, suggestedReply) in Georgian (ქართული)."
+      : "Write all text values in English.";
+
+  return `You are an expert customer support analyst. Analyze this ${languageContext} customer support conversation and extract detailed insights. ${outputLangInstruction} Return ONLY a valid JSON object with this exact structure:
 
 {
   "sentiment": {
     "label": "positive|negative|neutral",
     "score": 0.0-1.0
   },
+  "summary": "2-3 sentence summary of the full conversation",
+  "intent": "One sentence describing what the customer was trying to accomplish",
+  "resolution": "resolved|unresolved|pending",
+  "urgency": "low|medium|high",
   "topics": ["topic1", "topic2", "topic3"],
-  "actionItems": ["action1", "action2", "action3"],
-  "summary": "Brief 1-2 sentence summary of the conversation"
+  "keyIssues": ["specific issue or complaint 1", "specific issue 2"],
+  "actionItems": ["concrete next step 1", "next step 2"],
+  "agentPerformance": "One sentence evaluating the agent's helpfulness, tone, and effectiveness",
+  "suggestedReply": "A ready-to-send follow-up reply if the conversation is unresolved or pending, otherwise null"
 }
 
 Transcript:
 ${transcript}
 
 Guidelines:
-- Extract 3-6 short topics (single words or short noun phrases)
-- Identify 2-4 concrete action items (requests, promises, decisions)
-- Determine overall sentiment and a confidence score
-- Keep topics and action items concise and domain-agnostic (works for any conversation)
+- resolution: "resolved" if the customer's issue was fully addressed, "unresolved" if not, "pending" if awaiting action
+- urgency: "high" if customer expressed frustration, time pressure, or serious issue; "medium" for normal requests; "low" for casual inquiries
+- keyIssues: specific problems, complaints, or blockers the customer raised (not generic topics)
+- topics: 3-6 short noun phrases describing the main subjects discussed
+- actionItems: 2-4 concrete tasks that need to happen (promises made, next steps agreed)
+- agentPerformance: be honest and specific — mention if the agent was slow, unclear, or made errors
+- suggestedReply: write a natural, professional reply in the same language as the conversation; null if already resolved
 - Respond with valid JSON only, no other text`;
 }
 

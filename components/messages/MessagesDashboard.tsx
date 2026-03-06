@@ -48,11 +48,20 @@ export function MessagesDashboard() {
 
   const [analysis, setAnalysis] = useState<ConversationAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisLang, setAnalysisLang] = useState<"en" | "ka">("en");
   const [metrics, setMetrics] = useState<ConversationMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
 
   // Track which conversation has already been analyzed so polling doesn't re-trigger.
   const lastAnalyzedIdRef = useRef<string | null>(null);
+
+  // Re-run analysis when the user switches language (only if messages are loaded).
+  function handleLangChange(lang: "en" | "ka") {
+    setAnalysisLang(lang);
+    if (messages.length > 0) {
+      void runAnalysis(messages, lang);
+    }
+  }
 
   const selectedPage = useMemo(() => {
     if (!selectedConversation) return null;
@@ -110,7 +119,7 @@ export function MessagesDashboard() {
     }
   }
 
-  async function runAnalysis(msgs: Message[]) {
+  async function runAnalysis(msgs: Message[], lang: "en" | "ka" = analysisLang) {
     const textMessages = msgs.filter((m) => m.text);
     if (textMessages.length === 0) return;
 
@@ -127,7 +136,7 @@ export function MessagesDashboard() {
     const insightsPromise = fetch("/api/analyze-text", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript, language: "en" }),
+      body: JSON.stringify({ transcript, language: lang }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -436,6 +445,13 @@ export function MessagesDashboard() {
             analysisLoading={analysisLoading}
             metrics={metrics}
             metricsLoading={metricsLoading}
+            avgResponseTimeSecs={
+              selectedConversationId
+                ? (filteredConversations.find((c) => c.id === selectedConversationId)?.avg_response_time_seconds ?? null)
+                : null
+            }
+            language={analysisLang}
+            onLangChange={handleLangChange}
           />
 
           <TeamStatsPanel pageId={selectedPageId} token={token} />
