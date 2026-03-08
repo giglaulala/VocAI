@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
-const MANUAL_TOKEN_KEY = "vocai_manual_supabase_access_token";
+const MANUAL_TOKEN_KEY = "satisfai_manual_supabase_access_token";
 
 export function useAccessToken() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);

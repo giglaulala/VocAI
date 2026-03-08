@@ -5,12 +5,12 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "VocAI - AI-Powered Call Analysis & Conversation Insights",
+  title: "SatisfAI - AI-Powered Call Analysis & Conversation Insights",
   description:
     "Transform your calls into actionable insights with AI-powered conversation analysis. Parse calls, extract conversations, and gain valuable business intelligence.",
   keywords:
     "AI, call analysis, conversation parsing, business intelligence, voice recognition, transcription",
-  authors: [{ name: "VocAI Team" }],
+  authors: [{ name: "SatisfAI Team" }],
   viewport: "width=device-width, initial-scale=1",
 };
 

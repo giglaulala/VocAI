@@ -60,7 +60,7 @@ export default function HowItWorks() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 mb-4">
-            How VocAI Works
+            How SatisfAI Works
           </h2>
           <p className="text-xl text-neutral-600 max-w-3xl mx-auto">
             Four simple steps to transform your calls into actionable insights
@@ -130,7 +130,7 @@ export default function HowItWorks() {
               Ready to Get Started?
             </h3>
             <p className="text-neutral-600 mb-6">
-              Join thousands of businesses already using VocAI to improve their
+              Join thousands of businesses already using SatisfAI to improve their
               call analysis and customer insights.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

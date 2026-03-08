@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
-import vocailogo from "../vocailogo.png";
+import satisfailogo from "../vocailogo.png";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,14 +30,14 @@ export default function Header() {
           >
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-glow">
               <Image
-                src={vocailogo}
-                alt="VocAI logo"
+                src={satisfailogo}
+                alt="SatisfAI logo"
                 width={40}
                 height={40}
                 priority
               />
             </div>
-            <span className="text-2xl font-bold gradient-text">VocAI</span>
+            <span className="text-2xl font-bold gradient-text">SatisfAI</span>
           </motion.a>
 
           {/* Desktop Navigation */}

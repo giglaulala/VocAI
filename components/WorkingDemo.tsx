@@ -165,7 +165,7 @@ export default function WorkingDemo(): JSX.Element {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 mb-3">
-            Interactive VocAI Demo
+            Interactive SatisfAI Demo
           </h2>
           <p className="text-neutral-600">
             Upload an MP3 or generate a sample to see chat-style analysis.

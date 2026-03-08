@@ -1,6 +1,6 @@
-# VocAI - AI-Powered Call Analysis & Conversation Insights
+# SatisfAI - AI-Powered Call Analysis & Conversation Insights
 
-VocAI is a modern web application that transforms phone calls into actionable business intelligence using advanced AI technology. The platform parses calls, extracts conversations in chat-like format, and provides deep analysis including sentiment analysis, key topics, and action items.
+SatisfAI is a modern web application that transforms phone calls into actionable business intelligence using advanced AI technology. The platform parses calls, extracts conversations in chat-like format, and provides deep analysis including sentiment analysis, key topics, and action items.
 
 ## 🎨 Design Philosophy
 
@@ -55,7 +55,7 @@ The design incorporates a carefully chosen color scheme that reflects the core c
 
    ```bash
    git clone <repository-url>
-   cd VocAI
+   cd SatisfAI
    ```
 
 2. **Install dependencies**
@@ -220,11 +220,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🤝 Support
 
-- **Email**: hello@vocai.com
+- **Email**: hello@satisfai.com
 - **Phone**: +1 (555) 123-4567
-- **Documentation**: [docs.vocai.com](https://docs.vocai.com)
-- **Status**: [status.vocai.com](https://status.vocai.com)
+- **Documentation**: [docs.satisfai.com](https://docs.satisfai.com)
+- **Status**: [status.satisfai.com](https://status.satisfai.com)
 
 ---
 
-Built with ❤️ by the VocAI Team
+Built with ❤️ by the SatisfAI Team

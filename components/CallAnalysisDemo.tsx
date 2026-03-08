@@ -116,7 +116,7 @@ export default function CallAnalysisDemo() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl sm:text-4xl font-bold text-neutral-900 mb-4">
-            See VocAI in Action
+            See SatisfAI in Action
           </h2>
           <p className="text-xl text-neutral-600 max-w-3xl mx-auto">
             Watch how we transform a real customer service call into structured

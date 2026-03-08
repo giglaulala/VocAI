@@ -85,12 +85,12 @@ export default function Footer() {
               <div className="w-10 h-10 rounded-xl overflow-hidden">
                 <Image
                   src={require("../vocailogo.png")}
-                  alt="VocAI logo"
+                  alt="SatisfAI logo"
                   width={40}
                   height={40}
                 />
               </div>
-              <span className="text-2xl font-bold text-white">VocAI</span>
+              <span className="text-2xl font-bold text-white">SatisfAI</span>
             </motion.div>
 
             <motion.p
@@ -115,7 +115,7 @@ export default function Footer() {
             >
               <div className="flex items-center space-x-3 text-neutral-400">
                 <Mail className="w-4 h-4" />
-                <span>hello@vocai.com</span>
+                <span>hello@satisfai.com</span>
               </div>
               <div className="flex items-center space-x-3 text-neutral-400">
                 <Phone className="w-4 h-4" />
@@ -218,7 +218,7 @@ export default function Footer() {
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           <p className="text-neutral-400 text-sm mb-4 md:mb-0">
-            © 2024 VocAI. All rights reserved.
+            © 2024 SatisfAI. All rights reserved.
           </p>
 
           {/* Social Links */}

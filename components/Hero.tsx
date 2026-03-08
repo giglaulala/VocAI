@@ -26,7 +26,7 @@ export default function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            VocAI uses advanced AI to parse your calls, extract conversations,
+            SatisfAI uses advanced AI to parse your calls, extract conversations,
             and provide deep analysis that drives better business decisions.
           </motion.p>
 

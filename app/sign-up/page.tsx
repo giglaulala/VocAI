@@ -55,7 +55,7 @@ export default function SignUpPage(): JSX.Element {
           <h1 className="text-2xl font-bold text-neutral-900 mb-1">
             Create your account
           </h1>
-          <p className="text-neutral-600 mb-6">Get started with VocAI</p>
+          <p className="text-neutral-600 mb-6">Get started with SatisfAI</p>
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-1">
