@@ -82,12 +82,7 @@ export default function SignInPage(): JSX.Element {
               {isLoading ? "Signing in..." : "Sign in"}
             </button>
           </form>
-          <p className="text-sm text-neutral-600 mt-4">
-            Don’t have an account?{" "}
-            <Link href="/sign-up" className="text-primary-700 hover:underline">
-              Sign up
-            </Link>
-          </p>
+          
         </div>
       </section>
     </main>
