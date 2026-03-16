@@ -217,7 +217,7 @@ export default function Footer() {
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           <p className="text-neutral-400 text-sm mb-4 md:mb-0">
-            © 2024 VocAI. All rights reserved.
+            © 2026 VocAI. All rights reserved.
           </p>
 
           {/* Social Links */}
